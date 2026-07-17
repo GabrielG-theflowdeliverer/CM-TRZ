@@ -4,7 +4,8 @@ import { ADKAR_ELEMENTS, ADKAR_LABELS, MAX_RELEASES } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { Roadmap } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
-import { DateInput } from '../../ui/controls';
+import { useGroups } from '../impact/useGroups';
+import { DateInput, TextField } from '../../ui/controls';
 
 export function RoadmapPage() {
   const { projectId, project } = useProject();
@@ -14,12 +15,14 @@ export function RoadmapPage() {
     queryFn: () => api.get<Roadmap>(`/api/projects/${projectId}/roadmap`),
     enabled: projectId !== '',
   });
+  const { data: groups } = useGroups(projectId);
   const update = useMutation({
     mutationFn: (fields: Record<string, unknown>) =>
       api.put<Roadmap>(`/api/projects/${projectId}/roadmap`, fields),
     onSuccess: (data) => {
       queryClient.setQueryData(['roadmap', projectId], data);
       void queryClient.invalidateQueries({ queryKey: ['blueprints', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['assessments', projectId] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -30,11 +33,59 @@ export function RoadmapPage() {
   const approach = project.pmApproach;
   const iterative = approach === 'Iterative';
 
-  const milestone = (releaseNo: number, element: string) =>
-    roadmap.adkarMilestones.find((m) => m.releaseNo === releaseNo && m.element === element)?.date ?? null;
-  const release = (releaseNo: number) => roadmap.releases.find((r) => r.releaseNo === releaseNo)?.date ?? null;
-  const setMilestone = (releaseNo: number, element: string, date: string | null) =>
-    update.mutate({ adkarMilestones: [{ releaseNo, element, date }] });
+  const milestone = (releaseNo: number, element: string, groupId: string | null = null) =>
+    roadmap.adkarMilestones.find(
+      (m) => m.releaseNo === releaseNo && m.element === element && m.groupId === groupId,
+    )?.date ?? null;
+  const release = (releaseNo: number) => roadmap.releases.find((r) => r.releaseNo === releaseNo);
+  const setMilestone = (releaseNo: number, element: string, date: string | null, groupId: string | null = null) =>
+    update.mutate({ adkarMilestones: [{ releaseNo, element, date, groupId }] });
+
+  const groupMilestoneMatrix = (
+    <div className="cmt-card overflow-x-auto">
+      <h3 className="mb-1 font-semibold">Group ADKAR Milestone Dates</h3>
+      <p className="mb-3 text-xs text-slate-500">
+        Per-group milestones override the overall dates as defaults for that group’s blueprints.
+      </p>
+      {(groups ?? []).length === 0 ? (
+        <p className="text-sm text-slate-400">
+          No impacted groups yet — define them under{' '}
+          <Link className="text-indigo-600 hover:underline" to={`/projects/${projectId}/impact`}>
+            Define Impact
+          </Link>
+          .
+        </p>
+      ) : (
+        <table className="w-full min-w-[900px]">
+          <thead>
+            <tr>
+              <th className="cmt-th w-44">Impacted Group</th>
+              {ADKAR_ELEMENTS.map((el) => (
+                <th key={el} className="cmt-th">
+                  {ADKAR_LABELS[el]} Milestone
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(groups ?? []).map((g) => (
+              <tr key={g.id}>
+                <td className="cmt-td font-medium">{g.name}</td>
+                {ADKAR_ELEMENTS.map((el) => (
+                  <td key={el} className="cmt-td">
+                    <DateInput
+                      value={milestone(0, el, g.id)}
+                      onSave={(v) => setMilestone(0, el, v, g.id)}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 
   return (
     <div className="max-w-4xl space-y-4">
@@ -56,6 +107,7 @@ export function RoadmapPage() {
       </div>
 
       {!iterative && (
+        <>
         <div className="cmt-card">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -72,9 +124,12 @@ export function RoadmapPage() {
                   <DateInput value={value} onSave={(v) => update.mutate({ [field]: v })} />
                 </div>
               ))}
+              <p className="mt-2 text-[11px] text-slate-400">
+                Saving key dates schedules the Kickoff / Go Live / Outcomes PCT assessments automatically.
+              </p>
             </div>
             <div>
-              <h4 className="mb-2 text-sm font-semibold text-slate-600">ADKAR Milestone Dates</h4>
+              <h4 className="mb-2 text-sm font-semibold text-slate-600">ADKAR Milestone Dates (Overall)</h4>
               {ADKAR_ELEMENTS.map((el) => (
                 <div key={el} className="mb-2 flex items-center gap-3">
                   <span className="w-28 text-sm">{ADKAR_LABELS[el]}</span>
@@ -84,6 +139,8 @@ export function RoadmapPage() {
             </div>
           </div>
         </div>
+        {groupMilestoneMatrix}
+        </>
       )}
 
       {iterative && (
@@ -109,10 +166,10 @@ export function RoadmapPage() {
             <h4 className="mb-2 text-sm font-semibold text-slate-600">
               Key Initiative Release Dates and Iterative ADKAR Milestone Dates
             </h4>
-            <table className="w-full min-w-[900px]">
+            <table className="w-full min-w-[1050px]">
               <thead>
                 <tr>
-                  <th className="cmt-th w-32">Release</th>
+                  <th className="cmt-th w-44">Release Name</th>
                   <th className="cmt-th w-36">Release Date</th>
                   {ADKAR_ELEMENTS.map((el) => (
                     <th key={el} className="cmt-th">
@@ -124,10 +181,16 @@ export function RoadmapPage() {
               <tbody>
                 {Array.from({ length: MAX_RELEASES }, (_, i) => i + 1).map((releaseNo) => (
                   <tr key={releaseNo}>
-                    <td className="cmt-td font-medium">Release {releaseNo}</td>
+                    <td className="cmt-td">
+                      <TextField
+                        value={release(releaseNo)?.name ?? null}
+                        placeholder={`Release ${releaseNo}`}
+                        onSave={(v) => update.mutate({ releases: [{ releaseNo, name: v }] })}
+                      />
+                    </td>
                     <td className="cmt-td">
                       <DateInput
-                        value={release(releaseNo)}
+                        value={release(releaseNo)?.date ?? null}
                         onSave={(v) => update.mutate({ releases: [{ releaseNo, date: v }] })}
                       />
                     </td>
@@ -141,6 +204,7 @@ export function RoadmapPage() {
               </tbody>
             </table>
           </div>
+          {groupMilestoneMatrix}
         </>
       )}
     </div>

@@ -44,7 +44,12 @@ export interface AssessmentComputed {
 export type AssessmentDto = Assessment & { computed: AssessmentComputed };
 
 export type GroupDto = ImpactedGroup & {
-  computed: { aspectsImpacted: number; degreeOfImpact: number | null; barrierPoint: string | null };
+  computed: {
+    aspectsImpacted: number;
+    degreeOfImpact: number | null;
+    barrierPoint: string | null;
+    risk: { assessmentId: string; cc: number | null; oa: number | null; quadrant: RiskQuadrant | null } | null;
+  };
 };
 
 export type RoleDto = Role & { computed: { barrierPoint: string | null } };

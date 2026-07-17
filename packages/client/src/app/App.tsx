@@ -5,6 +5,7 @@ import { ProjectLayout } from './ProjectLayout';
 import { ProjectSettingsPage } from '../features/projects/ProjectSettingsPage';
 import { AssessmentsHubPage } from '../features/assessments/AssessmentsHubPage';
 import { AssessmentRunPage } from '../features/assessments/AssessmentRunPage';
+import { AdkarAssessmentsPage } from '../features/assessments/AdkarAssessmentsPage';
 import { ImpactPage } from '../features/impact/ImpactPage';
 import { GroupDetailPage } from '../features/impact/GroupDetailPage';
 import { RolesPage } from '../features/roles/RolesPage';
@@ -33,6 +34,7 @@ export function App() {
         <Route path="settings" element={<ProjectSettingsPage />} />
         <Route path="assessments" element={<AssessmentsHubPage />} />
         <Route path="assessments/:assessmentId" element={<AssessmentRunPage />} />
+        <Route path="adkar" element={<AdkarAssessmentsPage />} />
         <Route path="impact" element={<ImpactPage />} />
         <Route path="impact/:groupId" element={<GroupDetailPage />} />
         <Route path="roles" element={<RolesPage />} />

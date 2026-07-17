@@ -6,6 +6,7 @@ import { DateInput, Select, TextArea, TextField } from '../../ui/controls';
 import { PctEditor } from './PctEditor';
 import { RiskEditor } from './RiskEditor';
 import { CompetencyEditor } from './CompetencyEditor';
+import { AdkarEditor } from './AdkarEditor';
 
 export function AssessmentRunPage() {
   const { projectId } = useProject();
@@ -58,18 +59,12 @@ export function AssessmentRunPage() {
       {(run.type === 'sponsor_competency' || run.type === 'manager_competency') && (
         <CompetencyEditor run={run} onScore={setScore} />
       )}
-      {run.type === 'adkar' && (
-        <div className="cmt-card text-sm text-slate-500">
-          ADKAR runs are edited from the group or role they belong to.
-        </div>
-      )}
+      {run.type === 'adkar' && <AdkarEditor run={run} onScore={setScore} />}
 
-      {run.type !== 'adkar' && (
-        <div className="cmt-card">
-          <label className="cmt-label">Assessment notes</label>
-          <TextArea value={run.notes} onSave={(v) => update.mutate({ notes: v })} rows={3} />
-        </div>
-      )}
+      <div className="cmt-card">
+        <label className="cmt-label">Assessment notes</label>
+        <TextArea value={run.notes} onSave={(v) => update.mutate({ notes: v })} rows={3} />
+      </div>
     </div>
   );
 }

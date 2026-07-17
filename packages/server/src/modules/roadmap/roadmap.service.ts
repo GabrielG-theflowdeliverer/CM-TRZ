@@ -2,6 +2,7 @@ import { ADKAR_ELEMENTS, MAX_RELEASES, type Roadmap, type RoadmapMode } from '@c
 import type { Db } from '../../infra/db.js';
 import { HttpError } from '../../infra/http.js';
 import { getProject } from '../projects/projects.service.js';
+import { syncRoadmapPctSchedule } from '../assessments/assessments.service.js';
 
 interface RoadmapRow {
   project_id: string;
@@ -107,7 +108,13 @@ export function updateRoadmap(
       }
     }
   })();
-  return getRoadmap(db, projectId);
+  const updated = getRoadmap(db, projectId);
+  syncRoadmapPctSchedule(db, projectId, {
+    kickoffDate: updated.kickoffDate,
+    goliveDate: updated.goliveDate,
+    outcomesDate: updated.outcomesDate,
+  });
+  return updated;
 }
 
 /** Overall (release 0, no group) ADKAR milestone dates — the blueprint defaults. */

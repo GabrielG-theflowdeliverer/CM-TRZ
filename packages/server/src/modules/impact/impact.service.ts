@@ -17,6 +17,8 @@ export interface GroupWithComputed extends ImpactedGroup {
     aspectsImpacted: number;
     degreeOfImpact: number | null;
     barrierPoint: string | null;
+    /** Latest group-scoped risk run results, if any. */
+    risk: { assessmentId: string; cc: number | null; oa: number | null; quadrant: string | null } | null;
   };
 }
 
@@ -29,6 +31,7 @@ function assembleGroup(db: Db, row: repo.GroupRow): GroupWithComputed {
   );
   const latestAdkar = assessments.latestAssessment(db, row.project_id, 'adkar', { kind: 'group', id: row.id });
   const adkarScores = latestAdkar ? adkarScoresFromResponses(latestAdkar.responses) : {};
+  const latestRisk = assessments.latestAssessment(db, row.project_id, 'risk', { kind: 'group', id: row.id });
   const impacts = fullAspects.map((a) => a.impact);
   return {
     id: row.id,
@@ -45,6 +48,9 @@ function assembleGroup(db: Db, row: repo.GroupRow): GroupWithComputed {
       aspectsImpacted: aspectsImpacted(impacts),
       degreeOfImpact: degreeOfImpact(impacts),
       barrierPoint: barrierPoint(adkarScores),
+      risk: latestRisk?.computed.risk
+        ? { assessmentId: latestRisk.id, ...latestRisk.computed.risk }
+        : null,
     },
   };
 }

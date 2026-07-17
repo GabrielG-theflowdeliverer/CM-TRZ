@@ -154,3 +154,43 @@ export function latestAssessment(
   const a = repo.latestAssessment(db, projectId, type, subject);
   return a ? withComputed(a) : null;
 }
+
+/**
+ * Roadmap-driven scheduling (official Proxima behavior): keep three named PCT
+ * runs in sync with the roadmap's key dates. Idempotent by label; completed
+ * runs are left untouched.
+ */
+export function syncRoadmapPctSchedule(
+  db: Db,
+  projectId: string,
+  dates: { kickoffDate: string | null; goliveDate: string | null; outcomesDate: string | null },
+): void {
+  const schedule: Array<{ label: string; date: string | null }> = [
+    { label: 'Project Kickoff Assessment', date: dates.kickoffDate },
+    { label: 'Go Live/Launch Assessment', date: dates.goliveDate },
+    { label: 'Outcomes Assessment', date: dates.outcomesDate },
+  ];
+  const existing = repo.listAssessments(db, projectId, { type: 'pct' });
+  for (const item of schedule) {
+    const run = existing.find((a) => a.label === item.label);
+    if (run) {
+      if (run.status !== 'Completed' && run.scheduledDate !== item.date) {
+        repo.updateAssessment(db, run.id, { scheduledDate: item.date });
+      }
+    } else if (item.date) {
+      repo.insertAssessment(db, {
+        id: newId(),
+        projectId,
+        type: 'pct',
+        subjectKind: 'project',
+        subjectId: null,
+        label: item.label,
+        scheduledDate: item.date,
+        completedDate: null,
+        status: 'Not Started',
+        notes: null,
+        createdAt: nowIso(),
+      });
+    }
+  }
+}

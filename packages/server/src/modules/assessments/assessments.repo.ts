@@ -70,7 +70,11 @@ export function listAssessments(
   return rows.map((row) => toAssessment(row, getResponses(db, row.id)));
 }
 
-/** Latest run for trend/dashboard purposes: newest by completed date, then creation. */
+/**
+ * Latest run for trend/dashboard purposes. Completed runs always outrank
+ * scheduled/in-progress ones (a future-dated empty run must not mask real
+ * results); within each tier, newest first.
+ */
 export function latestAssessment(
   db: Db,
   projectId: string,
@@ -88,7 +92,8 @@ export function latestAssessment(
       params.push(subject.id);
     }
   }
-  sql += ' ORDER BY COALESCE(completed_date, created_at) DESC, created_at DESC LIMIT 1';
+  sql +=
+    ' ORDER BY (completed_date IS NOT NULL) DESC, COALESCE(completed_date, created_at) DESC, created_at DESC LIMIT 1';
   const row = db.prepare(sql).get(...params) as AssessmentRow | undefined;
   return row ? toAssessment(row, getResponses(db, row.id)) : null;
 }

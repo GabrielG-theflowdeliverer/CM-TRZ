@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   ADKAR_ELEMENTS,
   ADKAR_LABELS,
@@ -9,11 +9,112 @@ import {
   adkarItemKey,
 } from '@cmt/domain';
 import { api } from '../../lib/api';
-import type { GroupDto } from '../../lib/types';
+import type { AssessmentDto, GroupDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroupMutations } from './useGroups';
-import { BarrierBadge, HeatCell, ScorePicker, adkarCellColor, impactCellColor } from '../../ui/scores';
+import { useAssessments, useInvalidateAssessments } from '../assessments/useAssessments';
+import { BarrierBadge, HeatCell, RiskBadge, ScorePicker, adkarCellColor, impactCellColor } from '../../ui/scores';
 import { TextArea, TextField } from '../../ui/controls';
+
+const TABS = ['Change Impact', 'ADKAR Assessments', 'Risk Assessment'] as const;
+type GroupTab = (typeof TABS)[number];
+
+/** Assessment runs list scoped to this group (ADKAR history / group risk). */
+function GroupRunsTab(props: {
+  projectId: string;
+  groupId: string;
+  type: 'adkar' | 'risk';
+  runs: AssessmentDto[];
+}) {
+  const invalidate = useInvalidateAssessments(props.projectId);
+  const create = useMutation({
+    mutationFn: (input: { copyFromLatest?: boolean }) =>
+      api.post<AssessmentDto>(`/api/projects/${props.projectId}/assessments`, {
+        type: props.type,
+        subjectKind: 'group',
+        subjectId: props.groupId,
+        copyFromLatest: input.copyFromLatest,
+      }),
+    onSuccess: () => invalidate(),
+  });
+  const deleteRun = useMutation({
+    mutationFn: (id: string) => api.del(`/api/assessments/${id}`),
+    onSuccess: () => invalidate(),
+  });
+
+  return (
+    <div className="cmt-card">
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="font-semibold">
+          {props.type === 'adkar' ? 'ADKAR assessment history for this group' : 'Risk assessments for this group'}
+        </h3>
+        <div className="flex gap-1.5">
+          {props.runs.length > 0 && (
+            <button className="cmt-btn-secondary" onClick={() => create.mutate({ copyFromLatest: true })}>
+              Add (copy latest)
+            </button>
+          )}
+          <button className="cmt-btn" onClick={() => create.mutate({})}>
+            Add assessment
+          </button>
+        </div>
+      </div>
+      {props.runs.length === 0 ? (
+        <p className="text-sm text-slate-400">No runs yet for this group.</p>
+      ) : (
+        <table className="w-full">
+          <thead>
+            <tr>
+              <th className="cmt-th">Run</th>
+              <th className="cmt-th w-32">Scheduled</th>
+              <th className="cmt-th w-32">Completed</th>
+              <th className="cmt-th w-28">Status</th>
+              <th className="cmt-th w-44">Result</th>
+              <th className="cmt-th w-14"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.runs.map((run, i) => (
+              <tr key={run.id}>
+                <td className="cmt-td">
+                  <Link
+                    to={`/projects/${props.projectId}/assessments/${run.id}`}
+                    className="font-medium text-indigo-700 hover:underline"
+                  >
+                    {run.label ?? `Run ${i + 1}`}
+                  </Link>
+                </td>
+                <td className="cmt-td text-xs text-slate-500">{run.scheduledDate ?? '—'}</td>
+                <td className="cmt-td text-xs text-slate-500">{run.completedDate ?? '—'}</td>
+                <td className="cmt-td text-xs text-slate-500">{run.status ?? '—'}</td>
+                <td className="cmt-td">
+                  {props.type === 'adkar' ? (
+                    <BarrierBadge barrier={run.computed.adkar?.barrierPoint} />
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-xs text-slate-600">
+                      CC: {run.computed.risk?.cc ?? 'NA'} · OA: {run.computed.risk?.oa ?? 'NA'}{' '}
+                      <RiskBadge quadrant={run.computed.risk?.quadrant} />
+                    </span>
+                  )}
+                </td>
+                <td className="cmt-td text-right">
+                  <button
+                    className="cmt-btn-danger"
+                    onClick={() => {
+                      if (confirm('Delete this run?')) deleteRun.mutate(run.id);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
 
 export function GroupDetailPage() {
   const { projectId } = useProject();
@@ -24,10 +125,15 @@ export function GroupDetailPage() {
     enabled: groupId !== '',
   });
   const { update, saveAspects, saveAdkar } = useGroupMutations(projectId);
+  const { data: allAdkar } = useAssessments(projectId, 'adkar');
+  const { data: allRisk } = useAssessments(projectId, 'risk');
   const [showGuide, setShowGuide] = useState(false);
+  const [tab, setTab] = useState<GroupTab>('Change Impact');
 
   if (!group) return null;
   const aspectByKey = new Map(group.aspects.map((a) => [a.aspectKey, a]));
+  const groupAdkarRuns = (allAdkar ?? []).filter((r) => r.subjectKind === 'group' && r.subjectId === group.id);
+  const groupRiskRuns = (allRisk ?? []).filter((r) => r.subjectKind === 'group' && r.subjectId === group.id);
 
   return (
     <div className="max-w-5xl space-y-4">
@@ -38,8 +144,36 @@ export function GroupDetailPage() {
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold">{group.name}</h2>
           <BarrierBadge barrier={group.computed.barrierPoint} />
+          {group.computed.risk && <RiskBadge quadrant={group.computed.risk.quadrant} />}
         </div>
       </div>
+
+      <div className="flex gap-1">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            className={`rounded-t px-3 py-1.5 text-sm font-medium ${
+              tab === t ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+            onClick={() => setTab(t)}
+          >
+            {t}
+            {t === 'ADKAR Assessments' && groupAdkarRuns.length > 0 && ` (${groupAdkarRuns.length})`}
+            {t === 'Risk Assessment' && groupRiskRuns.length > 0 && ` (${groupRiskRuns.length})`}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'ADKAR Assessments' && (
+        <GroupRunsTab projectId={projectId} groupId={group.id} type="adkar" runs={groupAdkarRuns} />
+      )}
+      {tab === 'Risk Assessment' && (
+        <GroupRunsTab projectId={projectId} groupId={group.id} type="risk" runs={groupRiskRuns} />
+      )}
+
+      {tab !== 'Change Impact' ? null : (
+      <>
+
 
       <div className="cmt-card grid gap-3 md:grid-cols-2">
         <div>
@@ -162,6 +296,8 @@ export function GroupDetailPage() {
           onSave={(v) => update.mutate({ id: group.id, fields: { uniqueConsiderations: v } })}
         />
       </div>
+      </>
+      )}
     </div>
   );
 }
