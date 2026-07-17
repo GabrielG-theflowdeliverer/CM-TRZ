@@ -90,7 +90,9 @@ describe('export / import', () => {
       'groups',
       'groupAspects',
       'plans',
-      'planActivities',
+      'activities',
+      'activityPlans',
+      'activityGroups',
       'blueprints',
       'trackingEntries',
       'cmPerfEntries',
@@ -104,6 +106,67 @@ describe('export / import', () => {
 
   it('rejects malformed payloads', async () => {
     await request(ctx.app).post('/api/import').send({ hello: 'world' }).expect(400);
+  });
+
+  it('imports legacy v1 exports, unifying the old activity tables', async () => {
+    const projectId = await buildRichProject('Legacy source');
+    const { body: v2 } = await request(ctx.app).get(`/api/projects/${projectId}/export`).expect(200);
+    const { body: blueprints } = await request(ctx.app).get(`/api/projects/${projectId}/blueprints`).expect(200);
+    const overallBlueprint = blueprints[0];
+    const { body: plans } = await request(ctx.app).get(`/api/projects/${projectId}/plans`).expect(200);
+
+    // Hand-build a v1-shaped payload (pre-unification format).
+    const v1 = {
+      ...v2,
+      version: 1,
+      activities: undefined,
+      activityAdkar: undefined,
+      activityGroups: undefined,
+      activityPlans: undefined,
+      activityBlueprints: undefined,
+      activityRoles: undefined,
+      roadmapAdkarMilestones: [],
+      blueprintActivities: [
+        {
+          id: 'v1-ba-1',
+          blueprint_id: overallBlueprint.id,
+          element: 'awareness',
+          position: 0,
+          name: 'Legacy blueprint activity',
+          roles_required: 'Sponsor',
+          start_date: '2026-01-01',
+          finish_date: '2026-02-01',
+          status: 'Completed',
+        },
+      ],
+      planActivities: [
+        {
+          id: 'v1-pa-1',
+          plan_id: plans[0].id,
+          position: 0,
+          name: 'Legacy plan activity',
+          adkar_outcome: 'desire',
+          group_id: v2.groups[0].id,
+          method_mechanism: 'Email',
+          roles_required: null,
+          responsible: 'CP',
+          start_date: null,
+          finish_date: null,
+          status: 'In Progress',
+          result_feedback: null,
+        },
+      ],
+    };
+    const { body: imported } = await request(ctx.app).post('/api/import').send(v1).expect(201);
+    const { body: acts } = await request(ctx.app).get(`/api/projects/${imported.id}/activities`).expect(200);
+    const legacyBlueprintActivity = acts.find((a: { name: string }) => a.name === 'Legacy blueprint activity');
+    const legacyPlanActivity = acts.find((a: { name: string }) => a.name === 'Legacy plan activity');
+    expect(legacyBlueprintActivity.adkarOutcomes).toEqual(['awareness']);
+    expect(legacyBlueprintActivity.overall).toBe(true);
+    expect(legacyBlueprintActivity.blueprintIds).toHaveLength(1);
+    expect(legacyPlanActivity.adkarOutcomes).toEqual(['desire']);
+    expect(legacyPlanActivity.groupIds).toHaveLength(1);
+    expect(legacyPlanActivity.planIds).toHaveLength(1);
   });
 });
 

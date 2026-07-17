@@ -76,9 +76,9 @@ describe('impacted groups', () => {
     const { body: plans } = await request(ctx.app).get(`/api/projects/${projectId}/plans`).expect(200);
     const { body: planAfterAdd } = await request(ctx.app)
       .post(`/api/plans/${plans[0].id}/activities`)
-      .send({ name: 'Townhall', groupId: group.id })
+      .send({ name: 'Townhall', groupIds: [group.id] })
       .expect(201);
-    expect(planAfterAdd.activities[0].groupId).toBe(group.id);
+    expect(planAfterAdd.activities[0].groupIds).toEqual([group.id]);
 
     await request(ctx.app).delete(`/api/groups/${group.id}`).expect(204);
 
@@ -87,7 +87,7 @@ describe('impacted groups', () => {
       .expect(200);
     expect(runs).toHaveLength(0);
     const { body: planAfterDelete } = await request(ctx.app).get(`/api/plans/${plans[0].id}`).expect(200);
-    expect(planAfterDelete.activities[0].groupId).toBeNull();
+    expect(planAfterDelete.activities[0].groupIds).toEqual([]);
   });
 });
 

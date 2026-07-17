@@ -1,5 +1,6 @@
 /** Server response shapes (entities + server-computed blocks). */
 import type {
+  Activity,
   AdaptAction,
   Assessment,
   Blueprint,
@@ -18,6 +19,7 @@ import type {
 } from '@cmt/domain';
 
 export type {
+  Activity,
   AdaptAction,
   Assessment,
   Blueprint,

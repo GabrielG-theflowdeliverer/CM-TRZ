@@ -2,12 +2,13 @@ import { ADKAR_ELEMENTS, type Blueprint, type BlueprintSnapshot } from '@cmt/dom
 import { newId, nowIso, type Db } from '../../infra/db.js';
 import { HttpError, notFound } from '../../infra/http.js';
 import * as repo from './blueprints.repo.js';
-import { sequentialAdkarMilestones } from '../roadmap/roadmap.service.js';
+import * as activities from '../activities/activities.service.js';
+import { groupAdkarMilestones, sequentialAdkarMilestones } from '../roadmap/roadmap.service.js';
 import { getProject } from '../projects/projects.service.js';
 
 export interface BlueprintWithComputed extends Blueprint {
   groupName: string | null;
-  /** Effective milestone per element: override if set, else the roadmap default. */
+  /** Effective milestone per element: override, else group milestone, else overall roadmap default. */
   computed: { milestones: Record<string, { effectiveDate: string | null; fromRoadmap: boolean }> };
 }
 
@@ -17,13 +18,16 @@ function assemble(db: Db, row: repo.BlueprintRow): BlueprintWithComputed {
   const fullElements = ADKAR_ELEMENTS.map(
     (element) => byElement.get(element) ?? { element, milestoneOverrideDate: null, gaugeGap: null },
   );
-  const roadmapDefaults = sequentialAdkarMilestones(db, row.project_id);
+  const overallDefaults = sequentialAdkarMilestones(db, row.project_id);
+  const groupDefaults = row.group_id ? groupAdkarMilestones(db, row.project_id, row.group_id) : null;
   const milestones: Record<string, { effectiveDate: string | null; fromRoadmap: boolean }> = {};
   for (const el of fullElements) {
-    const override = el.milestoneOverrideDate;
-    milestones[el.element] = override
-      ? { effectiveDate: override, fromRoadmap: false }
-      : { effectiveDate: roadmapDefaults[el.element] ?? null, fromRoadmap: true };
+    if (el.milestoneOverrideDate) {
+      milestones[el.element] = { effectiveDate: el.milestoneOverrideDate, fromRoadmap: false };
+    } else {
+      const fromGroup = groupDefaults?.[el.element] ?? null;
+      milestones[el.element] = { effectiveDate: fromGroup ?? overallDefaults[el.element] ?? null, fromRoadmap: true };
+    }
   }
   const groupName = row.group_id
     ? ((db.prepare('SELECT name FROM impacted_groups WHERE id = ?').get(row.group_id) as { name: string } | undefined)
@@ -39,7 +43,7 @@ function assemble(db: Db, row: repo.BlueprintRow): BlueprintWithComputed {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     elements: fullElements,
-    activities: repo.getActivities(db, row.id),
+    activities: activities.listActivities(db, row.project_id, { blueprintId: row.id }),
     groupName,
     computed: { milestones },
   };
@@ -106,47 +110,23 @@ export function saveElement(
   return getBlueprint(db, blueprintId);
 }
 
+/** Convenience: create a unified activity pre-linked to this blueprint (and its scope). */
 export function addActivity(
   db: Db,
   blueprintId: string,
-  input: {
-    element: string;
-    name?: string | null;
-    rolesRequired?: string | null;
-    startDate?: string | null;
-    finishDate?: string | null;
-    status?: string | null;
-  },
+  input: activities.ActivityInput & { element: string },
 ): BlueprintWithComputed {
   const row = repo.getBlueprintRow(db, blueprintId) ?? notFound('Blueprint');
-  repo.insertActivity(db, {
-    id: newId(),
-    blueprintId: row.id,
-    element: input.element,
-    position: repo.nextActivityPosition(db, row.id, input.element),
-    name: input.name ?? null,
-    rolesRequired: input.rolesRequired ?? null,
-    startDate: input.startDate ?? null,
-    finishDate: input.finishDate ?? null,
-    status: input.status ?? 'Not Started',
+  const { element, ...rest } = input;
+  activities.createActivity(db, row.project_id, {
+    ...rest,
+    adkarOutcomes: rest.adkarOutcomes ?? [element],
+    blueprintIds: [...new Set([...(rest.blueprintIds ?? []), row.id])],
+    groupIds: rest.groupIds ?? (row.group_id ? [row.group_id] : []),
+    overall: rest.overall ?? row.scope_kind === 'overall',
   });
   repo.updateBlueprint(db, row.id, {}, nowIso());
   return getBlueprint(db, blueprintId);
-}
-
-export function updateActivity(
-  db: Db,
-  activityId: string,
-  fields: Parameters<typeof repo.updateActivity>[2],
-): BlueprintWithComputed {
-  const result = repo.updateActivity(db, activityId, fields) ?? notFound('Blueprint activity');
-  repo.updateBlueprint(db, result.blueprintId, {}, nowIso());
-  return getBlueprint(db, result.blueprintId);
-}
-
-export function deleteActivity(db: Db, activityId: string): BlueprintWithComputed {
-  const result = repo.deleteActivity(db, activityId) ?? notFound('Blueprint activity');
-  return getBlueprint(db, result.blueprintId);
 }
 
 export function listSnapshots(db: Db, blueprintId: string): BlueprintSnapshot[] {
@@ -163,7 +143,7 @@ export function listSnapshots(db: Db, blueprintId: string): BlueprintSnapshot[] 
   }));
 }
 
-/** Freeze the blueprint's full current state under a label. */
+/** Freeze the blueprint's full current state (incl. linked activities) under a label. */
 export function takeSnapshot(db: Db, blueprintId: string, label: string): BlueprintSnapshot {
   const blueprint = getBlueprint(db, blueprintId);
   const id = newId();

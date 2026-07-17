@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ADKAR_ELEMENTS } from '../content/adkar.js';
-import { ACTIVITY_STATUSES, GAUGE_GAPS } from '../vocab/index.js';
+import { GAUGE_GAPS } from '../vocab/index.js';
 import { nullableDate, nullableText } from './common.js';
 
 export const BLUEPRINT_SCOPES = ['overall', 'group', 'custom'] as const;
@@ -24,34 +24,9 @@ export const blueprintElementSchema = z.object({
   gaugeGap: z.enum(GAUGE_GAPS).nullable().optional(),
 });
 
-export const blueprintActivityCreateSchema = z.object({
-  element: z.enum(ADKAR_ELEMENTS),
-  name: nullableText.optional(),
-  rolesRequired: nullableText.optional(),
-  startDate: nullableDate.optional(),
-  finishDate: nullableDate.optional(),
-  status: z.enum(ACTIVITY_STATUSES).nullable().optional(),
-});
-
-export const blueprintActivityUpdateSchema = blueprintActivityCreateSchema.partial().extend({
-  position: z.number().int().min(0).optional(),
-});
-
 export const snapshotCreateSchema = z.object({
   label: z.string().min(1).max(300),
 });
-
-export interface BlueprintActivity {
-  id: string;
-  blueprintId: string;
-  element: string;
-  position: number;
-  name: string | null;
-  rolesRequired: string | null;
-  startDate: string | null;
-  finishDate: string | null;
-  status: string | null;
-}
 
 export interface BlueprintElement {
   element: string;
@@ -59,6 +34,7 @@ export interface BlueprintElement {
   gaugeGap: string | null;
 }
 
+/** Blueprint activities are unified activities linked via activity_blueprints. */
 export interface Blueprint {
   id: string;
   projectId: string;
@@ -69,7 +45,7 @@ export interface Blueprint {
   createdAt: string;
   updatedAt: string;
   elements: BlueprintElement[];
-  activities: BlueprintActivity[];
+  activities: import('./activity.js').Activity[];
 }
 
 export interface BlueprintSnapshot {

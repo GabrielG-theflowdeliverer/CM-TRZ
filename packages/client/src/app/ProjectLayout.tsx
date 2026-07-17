@@ -27,6 +27,7 @@ const NAV_SECTIONS: Array<{ title: string; items: Array<{ to: string; label: str
   {
     title: 'Phase 2 — Manage Change',
     items: [
+      { to: 'activities', label: 'Blueprints & Plans' },
       { to: 'blueprints', label: 'ADKAR Blueprints' },
       { to: 'plans', label: 'CM Plans' },
       { to: 'tracking', label: 'Tracking Calendar' },

@@ -22,6 +22,19 @@ export const ADKAR_SHORT: Record<AdkarElement, string> = {
   reinforcement: 'R',
 };
 
+/** ADKAR assessment statements (scored 1-5), as worded in Proxima. */
+export const ADKAR_STATEMENTS: Record<AdkarElement, string> = {
+  awareness: 'Awareness of the need for change.',
+  desire: 'Desire to support and participate in the change.',
+  knowledge: 'Knowledge about how to change.',
+  ability: 'Ability to implement the required skills and behaviors.',
+  reinforcement: 'Reinforcement to sustain the change.',
+};
+
+export const ADKAR_ASSESSMENT_INTRO =
+  'The ADKAR Assessment is the resource used to gather a snapshot of ADKAR scores for individuals or groups to guide change management activities, plans and adaptive actions. ' +
+  'ADKAR Assessments are typically completed at multiple points in the project lifecycle.';
+
 export const ADKAR_TACTICS: Record<AdkarElement, readonly string[]> = {
   awareness: [
     'Provide repetitive face-to-face communication of the business reasons for the change and the risks of not changing',

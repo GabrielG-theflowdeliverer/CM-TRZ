@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { planActivityCreateSchema, planActivityUpdateSchema, planCreateSchema, planUpdateSchema } from '@cmt/domain';
+import { activityCreateSchema, planCreateSchema, planUpdateSchema } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
 import { parseBody } from '../../infra/http.js';
 import * as service from './plans.service.js';
@@ -20,7 +20,7 @@ export function createProjectPlansRouter(db: Db): Router {
   return router;
 }
 
-/** At /api/plans/:id and /api/plan-activities/:id */
+/** At /api/plans/:id */
 export function createPlansRouter(db: Db): Router {
   const router = Router();
 
@@ -39,23 +39,8 @@ export function createPlansRouter(db: Db): Router {
   });
 
   router.post('/:id/activities', (req, res) => {
-    const input = parseBody(planActivityCreateSchema, req.body);
+    const input = parseBody(activityCreateSchema, req.body);
     res.status(201).json(service.addActivity(db, req.params.id, input));
-  });
-
-  return router;
-}
-
-export function createPlanActivitiesRouter(db: Db): Router {
-  const router = Router();
-
-  router.patch('/:id', (req, res) => {
-    const input = parseBody(planActivityUpdateSchema, req.body);
-    res.json(service.updateActivity(db, req.params.id, input));
-  });
-
-  router.delete('/:id', (req, res) => {
-    res.json(service.deleteActivity(db, req.params.id));
   });
 
   return router;

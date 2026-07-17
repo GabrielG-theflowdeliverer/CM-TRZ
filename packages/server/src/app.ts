@@ -7,12 +7,12 @@ import { createGroupsRouter, createProjectGroupsRouter } from './modules/impact/
 import { createProjectRolesRouter, createRolesRouter } from './modules/roles/roles.router.js';
 import { createRoadmapRouter } from './modules/roadmap/roadmap.router.js';
 import {
-  createBlueprintActivitiesRouter,
   createBlueprintsRouter,
   createProjectBlueprintsRouter,
   createSnapshotsRouter,
 } from './modules/blueprints/blueprints.router.js';
-import { createPlanActivitiesRouter, createPlansRouter, createProjectPlansRouter } from './modules/plans/plans.router.js';
+import { createPlansRouter, createProjectPlansRouter } from './modules/plans/plans.router.js';
+import { createActivitiesRouter, createProjectActivitiesRouter } from './modules/activities/activities.router.js';
 import { createProjectTrackingRouter, createTrackingItemRouters } from './modules/tracking/tracking.router.js';
 import { createProjectDocsRouter, createResistanceRouter } from './modules/docs/docs.router.js';
 import { createImportRouter, createProjectExportRouter } from './modules/transfer/transfer.router.js';
@@ -30,6 +30,7 @@ export function createApp(db: Db): Express {
   app.use('/api/projects/:projectId/roadmap', createRoadmapRouter(db));
   app.use('/api/projects/:projectId/blueprints', createProjectBlueprintsRouter(db));
   app.use('/api/projects/:projectId/plans', createProjectPlansRouter(db));
+  app.use('/api/projects/:projectId/activities', createProjectActivitiesRouter(db));
   app.use('/api/projects/:projectId/export', createProjectExportRouter(db));
   app.use('/api/projects/:projectId', createProjectTrackingRouter(db));
   app.use('/api/projects/:projectId', createProjectDocsRouter(db));
@@ -40,10 +41,9 @@ export function createApp(db: Db): Express {
   app.use('/api/groups', createGroupsRouter(db));
   app.use('/api/roles', createRolesRouter(db));
   app.use('/api/blueprints', createBlueprintsRouter(db));
-  app.use('/api/blueprint-activities', createBlueprintActivitiesRouter(db));
   app.use('/api/snapshots', createSnapshotsRouter(db));
   app.use('/api/plans', createPlansRouter(db));
-  app.use('/api/plan-activities', createPlanActivitiesRouter(db));
+  app.use('/api/activities', createActivitiesRouter(db));
   const trackingRouters = createTrackingItemRouters(db);
   app.use('/api/tracking', trackingRouters.tracking);
   app.use('/api/cm-perf', trackingRouters.cmPerf);

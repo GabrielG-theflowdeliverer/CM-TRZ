@@ -27,8 +27,9 @@ describe('roadmap', () => {
       })
       .expect(200);
     expect(body.mode).toBe('iterative');
-    expect(body.releases).toEqual([{ releaseNo: 1, date: '2026-09-01' }]);
+    expect(body.releases).toEqual([{ releaseNo: 1, date: '2026-09-01', name: null }]);
     expect(body.adkarMilestones).toHaveLength(2);
+    expect(body.adkarMilestones.every((m: { groupId: string | null }) => m.groupId === null)).toBe(true);
     await request(ctx.app).put(`/api/projects/${projectId}/roadmap`).send({ kickoffDate: 'not-a-date' }).expect(400);
   });
 });

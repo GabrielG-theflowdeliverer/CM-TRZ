@@ -9,7 +9,7 @@ import { getProject } from '../projects/projects.service.js';
  */
 export interface ProjectExport {
   format: 'change-management-tool/project';
-  version: 1;
+  version: 2;
   exportedAt: string;
   project: Record<string, unknown>;
   assessments: Record<string, unknown>[];
@@ -20,10 +20,14 @@ export interface ProjectExport {
   roleGroups: Record<string, unknown>[];
   blueprints: Record<string, unknown>[];
   blueprintElements: Record<string, unknown>[];
-  blueprintActivities: Record<string, unknown>[];
   blueprintSnapshots: Record<string, unknown>[];
   plans: Record<string, unknown>[];
-  planActivities: Record<string, unknown>[];
+  activities: Record<string, unknown>[];
+  activityAdkar: Record<string, unknown>[];
+  activityGroups: Record<string, unknown>[];
+  activityPlans: Record<string, unknown>[];
+  activityBlueprints: Record<string, unknown>[];
+  activityRoles: Record<string, unknown>[];
   roadmap: Record<string, unknown> | null;
   roadmapReleases: Record<string, unknown>[];
   roadmapAdkarMilestones: Record<string, unknown>[];
@@ -32,6 +36,80 @@ export interface ProjectExport {
   adaptActions: Record<string, unknown>[];
   projectDocs: Record<string, unknown>[];
   resistanceItems: Record<string, unknown>[];
+}
+
+/** Version 1 exports carried the pre-unification activity tables. */
+interface ProjectExportV1 extends Omit<ProjectExport, 'version' | 'activities' | 'activityAdkar' | 'activityGroups' | 'activityPlans' | 'activityBlueprints' | 'activityRoles'> {
+  version: 1;
+  blueprintActivities: Record<string, unknown>[];
+  planActivities: Record<string, unknown>[];
+}
+
+/** Upgrade a v1 payload to the unified-activity v2 shape (same mapping as migration 002). */
+function upgradeV1(v1: ProjectExportV1): ProjectExport {
+  const blueprintById = new Map(v1.blueprints.map((b) => [b.id as string, b]));
+  const planById = new Map(v1.plans.map((p) => [p.id as string, p]));
+  const activities: Record<string, unknown>[] = [];
+  const activityAdkar: Record<string, unknown>[] = [];
+  const activityGroups: Record<string, unknown>[] = [];
+  const activityPlans: Record<string, unknown>[] = [];
+  const activityBlueprints: Record<string, unknown>[] = [];
+
+  for (const ba of v1.blueprintActivities ?? []) {
+    const blueprint = blueprintById.get(ba.blueprint_id as string);
+    if (!blueprint) continue;
+    activities.push({
+      id: ba.id,
+      project_id: blueprint.project_id,
+      position: ba.position ?? 0,
+      name: ba.name ?? null,
+      method_mechanism: null,
+      roles_required_text: ba.roles_required ?? null,
+      responsible: null,
+      start_date: ba.start_date ?? null,
+      finish_date: ba.finish_date ?? null,
+      status: ba.status ?? null,
+      result_feedback: null,
+      overall: blueprint.scope_kind === 'overall' ? 1 : 0,
+    });
+    if (ba.element) activityAdkar.push({ activity_id: ba.id, element: ba.element });
+    activityBlueprints.push({ activity_id: ba.id, blueprint_id: ba.blueprint_id });
+    if (blueprint.group_id) activityGroups.push({ activity_id: ba.id, group_id: blueprint.group_id });
+  }
+  for (const pa of v1.planActivities ?? []) {
+    const plan = planById.get(pa.plan_id as string);
+    if (!plan) continue;
+    activities.push({
+      id: pa.id,
+      project_id: plan.project_id,
+      position: pa.position ?? 0,
+      name: pa.name ?? null,
+      method_mechanism: pa.method_mechanism ?? null,
+      roles_required_text: pa.roles_required ?? null,
+      responsible: pa.responsible ?? null,
+      start_date: pa.start_date ?? null,
+      finish_date: pa.finish_date ?? null,
+      status: pa.status ?? null,
+      result_feedback: pa.result_feedback ?? null,
+      overall: pa.group_id == null ? 1 : 0,
+    });
+    activityPlans.push({ activity_id: pa.id, plan_id: pa.plan_id });
+    if (pa.adkar_outcome) activityAdkar.push({ activity_id: pa.id, element: pa.adkar_outcome });
+    if (pa.group_id) activityGroups.push({ activity_id: pa.id, group_id: pa.group_id });
+  }
+  const { blueprintActivities: _ba, planActivities: _pa, ...rest } = v1;
+  return {
+    ...rest,
+    version: 2,
+    activities,
+    activityAdkar,
+    activityGroups,
+    activityPlans,
+    activityBlueprints,
+    activityRoles: [],
+    // v1 milestone rows have no group_id column; default them to overall.
+    roadmapAdkarMilestones: (v1.roadmapAdkarMilestones ?? []).map((m) => ({ group_id: '', ...m })),
+  };
 }
 
 function rows(db: Db, sql: string, projectId: string): Record<string, unknown>[] {
@@ -43,7 +121,7 @@ export function exportProject(db: Db, projectId: string): ProjectExport {
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as Record<string, unknown>;
   return {
     format: 'change-management-tool/project',
-    version: 1,
+    version: 2,
     exportedAt: nowIso(),
     project,
     assessments: rows(db, 'SELECT * FROM assessments WHERE project_id = ?', projectId),
@@ -70,20 +148,36 @@ export function exportProject(db: Db, projectId: string): ProjectExport {
       `SELECT be.* FROM blueprint_elements be JOIN blueprints b ON b.id = be.blueprint_id WHERE b.project_id = ?`,
       projectId,
     ),
-    blueprintActivities: rows(
-      db,
-      `SELECT ba.* FROM blueprint_activities ba JOIN blueprints b ON b.id = ba.blueprint_id WHERE b.project_id = ?`,
-      projectId,
-    ),
     blueprintSnapshots: rows(
       db,
       `SELECT bs.* FROM blueprint_snapshots bs JOIN blueprints b ON b.id = bs.blueprint_id WHERE b.project_id = ?`,
       projectId,
     ),
     plans: rows(db, 'SELECT * FROM plans WHERE project_id = ?', projectId),
-    planActivities: rows(
+    activities: rows(db, 'SELECT * FROM activities WHERE project_id = ?', projectId),
+    activityAdkar: rows(
       db,
-      `SELECT pa.* FROM plan_activities pa JOIN plans p ON p.id = pa.plan_id WHERE p.project_id = ?`,
+      `SELECT aa.* FROM activity_adkar aa JOIN activities a ON a.id = aa.activity_id WHERE a.project_id = ?`,
+      projectId,
+    ),
+    activityGroups: rows(
+      db,
+      `SELECT ag.* FROM activity_groups ag JOIN activities a ON a.id = ag.activity_id WHERE a.project_id = ?`,
+      projectId,
+    ),
+    activityPlans: rows(
+      db,
+      `SELECT ap.* FROM activity_plans ap JOIN activities a ON a.id = ap.activity_id WHERE a.project_id = ?`,
+      projectId,
+    ),
+    activityBlueprints: rows(
+      db,
+      `SELECT ab.* FROM activity_blueprints ab JOIN activities a ON a.id = ab.activity_id WHERE a.project_id = ?`,
+      projectId,
+    ),
+    activityRoles: rows(
+      db,
+      `SELECT ar2.* FROM activity_roles ar2 JOIN activities a ON a.id = ar2.activity_id WHERE a.project_id = ?`,
       projectId,
     ),
     roadmap: (db.prepare('SELECT * FROM roadmaps WHERE project_id = ?').get(projectId) as Record<string, unknown>) ?? null,
@@ -103,10 +197,15 @@ function insertRow(db: Db, table: string, row: Record<string, unknown>): void {
   db.prepare(sql).run(...keys.map((k) => row[k]));
 }
 
-export function importProject(db: Db, payload: ProjectExport, options?: { name?: string }): Project {
-  if (payload?.format !== 'change-management-tool/project' || payload.version !== 1) {
+export function importProject(
+  db: Db,
+  rawPayload: ProjectExport | ProjectExportV1,
+  options?: { name?: string },
+): Project {
+  if (rawPayload?.format !== 'change-management-tool/project' || ![1, 2].includes(rawPayload.version)) {
     throw new HttpError(400, 'Unrecognized project export format');
   }
+  const payload: ProjectExport = rawPayload.version === 1 ? upgradeV1(rawPayload) : rawPayload;
   const newProjectId = newId();
   const now = nowIso();
 
@@ -116,6 +215,7 @@ export function importProject(db: Db, payload: ProjectExport, options?: { name?:
   const assessmentIds = new Map<string, string>();
   const blueprintIds = new Map<string, string>();
   const planIds = new Map<string, string>();
+  const activityIds = new Map<string, string>();
 
   const remap = (map: Map<string, string>, oldId: unknown): string | null =>
     typeof oldId === 'string' ? (map.get(oldId) ?? null) : null;
@@ -174,10 +274,6 @@ export function importProject(db: Db, payload: ProjectExport, options?: { name?:
       const blueprintId = remap(blueprintIds, be.blueprint_id);
       if (blueprintId) insertRow(db, 'blueprint_elements', { ...be, blueprint_id: blueprintId });
     }
-    for (const ba of payload.blueprintActivities) {
-      const blueprintId = remap(blueprintIds, ba.blueprint_id);
-      if (blueprintId) insertRow(db, 'blueprint_activities', { ...ba, id: newId(), blueprint_id: blueprintId });
-    }
     for (const bs of payload.blueprintSnapshots) {
       const blueprintId = remap(blueprintIds, bs.blueprint_id);
       if (blueprintId) insertRow(db, 'blueprint_snapshots', { ...bs, id: newId(), blueprint_id: blueprintId });
@@ -187,21 +283,37 @@ export function importProject(db: Db, payload: ProjectExport, options?: { name?:
       planIds.set(p.id as string, id);
       insertRow(db, 'plans', { ...p, id, project_id: newProjectId });
     }
-    for (const pa of payload.planActivities) {
-      const planId = remap(planIds, pa.plan_id);
-      if (planId) {
-        insertRow(db, 'plan_activities', {
-          ...pa,
-          id: newId(),
-          plan_id: planId,
-          group_id: remap(groupIds, pa.group_id),
-        });
-      }
+    for (const a of payload.activities) {
+      const id = newId();
+      activityIds.set(a.id as string, id);
+      insertRow(db, 'activities', { ...a, id, project_id: newProjectId });
     }
+    const linkInsert = (
+      rows2: Record<string, unknown>[],
+      table: string,
+      column: string,
+      map: Map<string, string>,
+    ) => {
+      for (const link of rows2) {
+        const activityId = remap(activityIds, link.activity_id);
+        const target = remap(map, link[column]);
+        if (activityId && target) insertRow(db, table, { activity_id: activityId, [column]: target });
+      }
+    };
+    for (const aa of payload.activityAdkar) {
+      const activityId = remap(activityIds, aa.activity_id);
+      if (activityId) insertRow(db, 'activity_adkar', { activity_id: activityId, element: aa.element });
+    }
+    linkInsert(payload.activityGroups, 'activity_groups', 'group_id', groupIds);
+    linkInsert(payload.activityPlans, 'activity_plans', 'plan_id', planIds);
+    linkInsert(payload.activityBlueprints, 'activity_blueprints', 'blueprint_id', blueprintIds);
+    linkInsert(payload.activityRoles, 'activity_roles', 'role_id', roleIds);
     if (payload.roadmap) insertRow(db, 'roadmaps', { ...payload.roadmap, project_id: newProjectId });
     for (const rr of payload.roadmapReleases) insertRow(db, 'roadmap_releases', { ...rr, project_id: newProjectId });
     for (const rm of payload.roadmapAdkarMilestones) {
-      insertRow(db, 'roadmap_adkar_milestones', { ...rm, project_id: newProjectId });
+      const groupId = rm.group_id === '' || rm.group_id == null ? '' : remap(groupIds, rm.group_id);
+      if (groupId === null) continue; // milestone for a group that no longer exists
+      insertRow(db, 'roadmap_adkar_milestones', { ...rm, project_id: newProjectId, group_id: groupId });
     }
     for (const t of payload.trackingEntries) {
       insertRow(db, 'tracking_entries', { ...t, id: newId(), project_id: newProjectId });

@@ -68,13 +68,14 @@ describe('blueprints', () => {
       .expect(201);
     expect(withActivity.activities).toHaveLength(1);
     expect(withActivity.activities[0].status).toBe('Not Started');
+    expect(withActivity.activities[0].adkarOutcomes).toEqual(['desire']);
 
     const activityId = withActivity.activities[0].id;
     const { body: after } = await request(ctx.app)
-      .patch(`/api/blueprint-activities/${activityId}`)
+      .patch(`/api/activities/${activityId}`)
       .send({ status: 'Completed' })
       .expect(200);
-    expect(after.activities[0].status).toBe('Completed');
+    expect(after.status).toBe('Completed');
 
     await request(ctx.app).post(`/api/blueprints/${overall.id}/activities`).send({ element: 'invalid' }).expect(400);
   });
@@ -94,7 +95,7 @@ describe('blueprints', () => {
 
     const { body: current } = await request(ctx.app).get(`/api/blueprints/${overall.id}`).expect(200);
     await request(ctx.app)
-      .patch(`/api/blueprint-activities/${current.activities[0].id}`)
+      .patch(`/api/activities/${current.activities[0].id}`)
       .send({ name: 'Edited name' })
       .expect(200);
 
@@ -123,7 +124,7 @@ describe('plans', () => {
     const comms = plans[0];
     await request(ctx.app)
       .post(`/api/plans/${comms.id}/activities`)
-      .send({ name: 'Kickoff email', adkarOutcome: 'awareness', status: 'Completed' })
+      .send({ name: 'Kickoff email', adkarOutcomes: ['awareness'], status: 'Completed' })
       .expect(201);
     const { body: after } = await request(ctx.app)
       .post(`/api/plans/${comms.id}/activities`)
@@ -137,7 +138,7 @@ describe('plans', () => {
       .expect(400);
     await request(ctx.app)
       .post(`/api/plans/${comms.id}/activities`)
-      .send({ name: 'Bad', adkarOutcome: 'motivation' })
+      .send({ name: 'Bad', adkarOutcomes: ['motivation'] })
       .expect(400);
 
     // Group from another project is rejected.
@@ -148,7 +149,7 @@ describe('plans', () => {
       .expect(201);
     await request(ctx.app)
       .post(`/api/plans/${comms.id}/activities`)
-      .send({ name: 'Bad', groupId: foreignGroup.id })
+      .send({ name: 'Bad', groupIds: [foreignGroup.id] })
       .expect(400);
   });
 });

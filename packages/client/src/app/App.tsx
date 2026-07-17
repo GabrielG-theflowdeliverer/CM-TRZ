@@ -13,6 +13,7 @@ import { WhyCmPage } from '../features/docs/WhyCmPage';
 import { ResourcesPage } from '../features/docs/ResourcesPage';
 import { ResistancePage } from '../features/docs/ResistancePage';
 import { RoadmapPage } from '../features/roadmap/RoadmapPage';
+import { ActivitiesWorkbenchPage } from '../features/activities/ActivitiesWorkbenchPage';
 import { BlueprintsPage } from '../features/blueprints/BlueprintsPage';
 import { BlueprintDetailPage } from '../features/blueprints/BlueprintDetailPage';
 import { PlansPage } from '../features/plans/PlansPage';
@@ -40,6 +41,7 @@ export function App() {
         <Route path="resources" element={<ResourcesPage />} />
         <Route path="resistance" element={<ResistancePage />} />
         <Route path="roadmap" element={<RoadmapPage />} />
+        <Route path="activities" element={<ActivitiesWorkbenchPage />} />
         <Route path="blueprints" element={<BlueprintsPage />} />
         <Route path="blueprints/:blueprintId" element={<BlueprintDetailPage />} />
         <Route path="plans" element={<PlansPage />} />

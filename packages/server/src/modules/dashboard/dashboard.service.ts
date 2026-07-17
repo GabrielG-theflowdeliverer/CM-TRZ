@@ -31,18 +31,12 @@ export function getDashboard(db: Db): DashboardPayload {
     const latestRisk = assessments.latestAssessment(db, project.id, 'risk');
     const groups = impact.listGroups(db, project.id);
 
-    const activityStatuses = [
-      ...(db
-        .prepare(
-          `SELECT pa.status, pa.finish_date FROM plan_activities pa JOIN plans p ON p.id = pa.plan_id WHERE p.project_id = ?`,
-        )
-        .all(project.id) as Array<{ status: string | null; finish_date: string | null }>),
-      ...(db
-        .prepare(
-          `SELECT ba.status, ba.finish_date FROM blueprint_activities ba JOIN blueprints b ON b.id = ba.blueprint_id WHERE b.project_id = ?`,
-        )
-        .all(project.id) as Array<{ status: string | null; finish_date: string | null }>),
-    ].map((r) => ({ status: r.status as ActivityStatus | null, finishDate: r.finish_date }));
+    // Unified activities: each counts once no matter how many plans/blueprints link it.
+    const activityStatuses = (
+      db
+        .prepare(`SELECT status, finish_date FROM activities WHERE project_id = ?`)
+        .all(project.id) as Array<{ status: string | null; finish_date: string | null }>
+    ).map((r) => ({ status: r.status as ActivityStatus | null, finishDate: r.finish_date }));
 
     const latestCmPerf = db
       .prepare(

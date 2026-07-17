@@ -1,7 +1,8 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import {
-  blueprintActivityCreateSchema,
-  blueprintActivityUpdateSchema,
+  ADKAR_ELEMENTS,
+  activityCreateSchema,
   blueprintCreateSchema,
   blueprintElementSchema,
   blueprintUpdateSchema,
@@ -10,6 +11,8 @@ import {
 import type { Db } from '../../infra/db.js';
 import { parseBody } from '../../infra/http.js';
 import * as service from './blueprints.service.js';
+
+const blueprintActivitySchema = activityCreateSchema.extend({ element: z.enum(ADKAR_ELEMENTS) });
 
 /** Nested under /api/projects/:projectId/blueprints */
 export function createProjectBlueprintsRouter(db: Db): Router {
@@ -27,7 +30,7 @@ export function createProjectBlueprintsRouter(db: Db): Router {
   return router;
 }
 
-/** At /api/blueprints/:id and /api/blueprint-activities/:id */
+/** At /api/blueprints/:id */
 export function createBlueprintsRouter(db: Db): Router {
   const router = Router();
 
@@ -56,7 +59,7 @@ export function createBlueprintsRouter(db: Db): Router {
   });
 
   router.post('/:id/activities', (req, res) => {
-    const input = parseBody(blueprintActivityCreateSchema, req.body);
+    const input = parseBody(blueprintActivitySchema, req.body);
     res.status(201).json(service.addActivity(db, req.params.id, input));
   });
 
@@ -67,21 +70,6 @@ export function createBlueprintsRouter(db: Db): Router {
   router.post('/:id/snapshots', (req, res) => {
     const input = parseBody(snapshotCreateSchema, req.body);
     res.status(201).json(service.takeSnapshot(db, req.params.id, input.label));
-  });
-
-  return router;
-}
-
-export function createBlueprintActivitiesRouter(db: Db): Router {
-  const router = Router();
-
-  router.patch('/:id', (req, res) => {
-    const input = parseBody(blueprintActivityUpdateSchema, req.body);
-    res.json(service.updateActivity(db, req.params.id, input));
-  });
-
-  router.delete('/:id', (req, res) => {
-    res.json(service.deleteActivity(db, req.params.id));
   });
 
   return router;

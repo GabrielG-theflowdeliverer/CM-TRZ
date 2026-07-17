@@ -26,6 +26,7 @@ export * from './entities/project.js';
 export * from './entities/assessment.js';
 export * from './entities/impact.js';
 export * from './entities/role.js';
+export * from './entities/activity.js';
 export * from './entities/blueprint.js';
 export * from './entities/plan.js';
 export * from './entities/roadmap.js';

@@ -12,16 +12,14 @@ import { api } from '../../lib/api';
 import type { Roadmap, TrackingEntry } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { DateInput, Select, TextArea } from '../../ui/controls';
-import { usePlans } from '../plans/PlansPage';
-import { useBlueprints } from '../blueprints/useBlueprints';
+import { useActivities } from '../activities/useActivities';
 import { TimelineView } from './TimelineView';
 
 export function TrackingPage() {
   const { projectId } = useProject();
   const queryClient = useQueryClient();
   const [view, setView] = useState<'timeline' | 'schedules'>('timeline');
-  const { data: plans } = usePlans(projectId);
-  const { data: blueprints } = useBlueprints(projectId);
+  const { data: activities } = useActivities(projectId);
   const { data: entries } = useQuery({
     queryKey: ['tracking', projectId],
     queryFn: () => api.get<TrackingEntry[]>(`/api/projects/${projectId}/tracking`),
@@ -83,8 +81,7 @@ export function TrackingPage() {
 
       {view === 'timeline' && (
         <TimelineView
-          plans={plans ?? []}
-          blueprints={blueprints ?? []}
+          activities={activities ?? []}
           roadmap={roadmap}
           tracking={entries ?? []}
           today={new Date().toISOString().slice(0, 10)}

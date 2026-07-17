@@ -17,7 +17,8 @@ export const roadmapUpdateSchema = z.object({
     .array(
       z.object({
         releaseNo: z.number().int().min(1).max(MAX_RELEASES),
-        date: nullableDate,
+        date: nullableDate.optional(),
+        name: z.string().max(300).nullable().optional(),
       }),
     )
     .optional(),
@@ -27,6 +28,8 @@ export const roadmapUpdateSchema = z.object({
         releaseNo: z.number().int().min(0).max(MAX_RELEASES),
         element: z.enum(ADKAR_ELEMENTS),
         date: nullableDate,
+        /** Impacted group the milestone belongs to; omitted/null = overall change. */
+        groupId: z.string().nullable().optional(),
       }),
     )
     .optional(),
@@ -38,6 +41,6 @@ export interface Roadmap {
   kickoffDate: string | null;
   goliveDate: string | null;
   outcomesDate: string | null;
-  releases: Array<{ releaseNo: number; date: string | null }>;
-  adkarMilestones: Array<{ releaseNo: number; element: string; date: string | null }>;
+  releases: Array<{ releaseNo: number; date: string | null; name: string | null }>;
+  adkarMilestones: Array<{ releaseNo: number; element: string; date: string | null; groupId: string | null }>;
 }

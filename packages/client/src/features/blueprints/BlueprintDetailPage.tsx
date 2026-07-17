@@ -1,16 +1,42 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ADKAR_ELEMENTS, ADKAR_LABELS, ADKAR_TACTICS, GAUGE_GAPS, ACTIVITY_STATUSES } from '@cmt/domain';
+import { useQuery } from '@tanstack/react-query';
+import { ADKAR_ELEMENTS, ADKAR_LABELS, ADKAR_TACTICS, GAUGE_GAPS } from '@cmt/domain';
+import { api } from '../../lib/api';
+import type { RoleDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useBlueprint, useBlueprintMutations, useSnapshots } from './useBlueprints';
-import { DateInput, Select, TextField } from '../../ui/controls';
+import { useBlueprints } from './useBlueprints';
+import { useGroups } from '../impact/useGroups';
+import { usePlans } from '../plans/PlansPage';
+import { useActivityMutations } from '../activities/useActivities';
+import { ActivityTable, type ActivityTableContext } from '../activities/ActivityTable';
+import { DateInput, Select } from '../../ui/controls';
+
+interface SnapshotActivity {
+  name: string | null;
+  adkarOutcomes?: string[];
+  element?: string; // pre-unification snapshots
+  startDate: string | null;
+  finishDate: string | null;
+  status: string | null;
+}
 
 export function BlueprintDetailPage() {
   const { projectId } = useProject();
   const { blueprintId = '' } = useParams();
   const { data: blueprint } = useBlueprint(projectId, blueprintId);
   const { data: snapshots } = useSnapshots(blueprintId);
+  const { data: groups } = useGroups(projectId);
+  const { data: plans } = usePlans(projectId);
+  const { data: blueprints } = useBlueprints(projectId);
+  const { data: roles } = useQuery({
+    queryKey: ['roles', projectId],
+    queryFn: () => api.get<RoleDto[]>(`/api/projects/${projectId}/roles`),
+    enabled: projectId !== '',
+  });
   const mutations = useBlueprintMutations(projectId, blueprintId);
+  const activityMutations = useActivityMutations(projectId);
   const [tacticsFor, setTacticsFor] = useState<string | null>(null);
   const [snapshotOpen, setSnapshotOpen] = useState(false);
   const [viewSnapshot, setViewSnapshot] = useState<string | null>(null);
@@ -18,11 +44,22 @@ export function BlueprintDetailPage() {
   if (!blueprint) return null;
   const elementByKey = new Map(blueprint.elements.map((e) => [e.element, e]));
   const snapshot = (snapshots ?? []).find((s) => s.id === viewSnapshot) as
-    | { id: string; label: string; takenAt: string; payload: { activities: Array<Record<string, string | null>> } }
+    | { id: string; label: string; takenAt: string; payload: { activities: SnapshotActivity[] } }
     | undefined;
 
+  const ctx: ActivityTableContext = {
+    groups: groups ?? [],
+    plans: plans ?? [],
+    blueprints: blueprints ?? [],
+    roles: roles ?? [],
+    onUpdate: (id, fields) => activityMutations.update.mutate({ id, fields }),
+    onDelete: (id) => activityMutations.remove.mutate(id),
+  };
+
+  const unassigned = blueprint.activities.filter((a) => a.adkarOutcomes.length === 0);
+
   return (
-    <div className="max-w-5xl space-y-4">
+    <div className="max-w-full space-y-4">
       <div className="flex items-end justify-between">
         <div>
           <Link to={`/projects/${projectId}/blueprints`} className="text-xs font-semibold text-indigo-600 hover:underline">
@@ -95,9 +132,8 @@ export function BlueprintDetailPage() {
               <table className="w-full text-xs">
                 <thead>
                   <tr>
-                    <th className="cmt-th">Element</th>
+                    <th className="cmt-th">ADKAR</th>
                     <th className="cmt-th">Activity</th>
-                    <th className="cmt-th">Roles</th>
                     <th className="cmt-th">Start</th>
                     <th className="cmt-th">Finish</th>
                     <th className="cmt-th">Status</th>
@@ -106,9 +142,8 @@ export function BlueprintDetailPage() {
                 <tbody>
                   {snapshot.payload.activities.map((a, i) => (
                     <tr key={i}>
-                      <td className="cmt-td capitalize">{a.element}</td>
+                      <td className="cmt-td capitalize">{a.element ?? a.adkarOutcomes?.join(', ')}</td>
                       <td className="cmt-td">{a.name}</td>
-                      <td className="cmt-td">{a.rolesRequired}</td>
                       <td className="cmt-td">{a.startDate}</td>
                       <td className="cmt-td">{a.finishDate}</td>
                       <td className="cmt-td">{a.status}</td>
@@ -124,7 +159,7 @@ export function BlueprintDetailPage() {
       {ADKAR_ELEMENTS.map((element) => {
         const el = elementByKey.get(element);
         const milestone = blueprint.computed.milestones[element];
-        const activities = blueprint.activities.filter((a) => a.element === element);
+        const activities = blueprint.activities.filter((a) => a.adkarOutcomes.includes(element));
         return (
           <section key={element} className="cmt-card">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -172,74 +207,17 @@ export function BlueprintDetailPage() {
               </div>
             )}
 
-            {activities.length === 0 ? (
-              <p className="text-sm text-slate-400">No activities for {ADKAR_LABELS[element]} yet.</p>
-            ) : (
-              <table className="w-full">
-                <thead>
-                  <tr>
-                    <th className="cmt-th w-8">#</th>
-                    <th className="cmt-th">Activity Name</th>
-                    <th className="cmt-th w-44">Role(s) Required (Who)</th>
-                    <th className="cmt-th w-36">Start Date</th>
-                    <th className="cmt-th w-36">Finish Date</th>
-                    <th className="cmt-th w-32">Status</th>
-                    <th className="cmt-th w-10"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activities.map((a, i) => (
-                    <tr key={a.id}>
-                      <td className="cmt-td text-slate-400">{i + 1}</td>
-                      <td className="cmt-td">
-                        <TextField
-                          value={a.name}
-                          onSave={(v) => mutations.updateActivity.mutate({ activityId: a.id, fields: { name: v } })}
-                        />
-                      </td>
-                      <td className="cmt-td">
-                        <TextField
-                          value={a.rolesRequired}
-                          onSave={(v) => mutations.updateActivity.mutate({ activityId: a.id, fields: { rolesRequired: v } })}
-                        />
-                      </td>
-                      <td className="cmt-td">
-                        <DateInput
-                          value={a.startDate}
-                          onSave={(v) => mutations.updateActivity.mutate({ activityId: a.id, fields: { startDate: v } })}
-                        />
-                      </td>
-                      <td className="cmt-td">
-                        <DateInput
-                          value={a.finishDate}
-                          onSave={(v) => mutations.updateActivity.mutate({ activityId: a.id, fields: { finishDate: v } })}
-                        />
-                      </td>
-                      <td className="cmt-td">
-                        <Select
-                          value={a.status}
-                          options={ACTIVITY_STATUSES}
-                          onSave={(v) => mutations.updateActivity.mutate({ activityId: a.id, fields: { status: v } })}
-                        />
-                      </td>
-                      <td className="cmt-td">
-                        <button
-                          className="cmt-btn-danger"
-                          onClick={() => {
-                            if (confirm('Delete this activity?')) mutations.removeActivity.mutate(a.id);
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <ActivityTable activities={activities} ctx={ctx} hideColumns={['blueprints', 'method', 'result']} />
           </section>
         );
       })}
+
+      {unassigned.length > 0 && (
+        <section className="cmt-card">
+          <h3 className="mb-2 text-lg font-bold text-slate-500">No ADKAR outcome yet</h3>
+          <ActivityTable activities={unassigned} ctx={ctx} hideColumns={['blueprints', 'method', 'result']} />
+        </section>
+      )}
     </div>
   );
 }

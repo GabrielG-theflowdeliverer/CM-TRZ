@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { ADKAR_LABELS, TRACKING_SCHEDULE_LABELS, type TrackingSchedule } from '@cmt/domain';
-import type { BlueprintDto, PlanDto, Roadmap, TrackingEntry } from '../../lib/types';
+import { ADKAR_ELEMENTS, ADKAR_LABELS, TRACKING_SCHEDULE_LABELS, type TrackingSchedule } from '@cmt/domain';
+import type { Activity, Roadmap, TrackingEntry } from '../../lib/types';
 
 interface TimelineBar {
   label: string;
@@ -52,32 +52,38 @@ function monthTicks(min: number, max: number): Array<{ time: number; label: stri
 
 /** Gantt-like chart of every planned activity, milestone and status check. */
 export function TimelineView(props: {
-  plans: PlanDto[];
-  blueprints: BlueprintDto[];
+  activities: Activity[];
   roadmap: Roadmap | undefined;
   tracking: TrackingEntry[];
   today: string;
 }) {
-  const { plans, blueprints, roadmap, tracking, today } = props;
+  const { activities, roadmap, tracking, today } = props;
 
   const { groups, milestones, min, max } = useMemo(() => {
     const groups: TimelineGroup[] = [];
-    for (const plan of plans) {
-      const bars = plan.activities
-        .filter((a) => a.startDate || a.finishDate)
-        .map((a) => ({ label: a.name || '(unnamed activity)', start: a.startDate, finish: a.finishDate, status: a.status }));
-      if (bars.length) groups.push({ title: `Plan — ${plan.name}`, bars });
+    // Unified activities: one row each, sectioned by ADKAR outcome.
+    const dated = activities.filter((a) => a.startDate || a.finishDate);
+    const seen = new Set<string>();
+    for (const element of ADKAR_ELEMENTS) {
+      const bars = dated
+        .filter((a) => a.adkarOutcomes.includes(element) && !seen.has(a.id))
+        .map((a) => {
+          seen.add(a.id);
+          return { label: a.name || '(unnamed activity)', start: a.startDate, finish: a.finishDate, status: a.status };
+        });
+      if (bars.length) groups.push({ title: `Activities — ${ADKAR_LABELS[element]}`, bars });
     }
-    for (const bp of blueprints) {
-      const bars = bp.activities
-        .filter((a) => a.startDate || a.finishDate)
-        .map((a) => ({
-          label: `${ADKAR_LABELS[a.element as keyof typeof ADKAR_LABELS] ?? a.element}: ${a.name || '(unnamed activity)'}`,
+    const other = dated.filter((a) => !seen.has(a.id));
+    if (other.length) {
+      groups.push({
+        title: 'Activities — no ADKAR outcome',
+        bars: other.map((a) => ({
+          label: a.name || '(unnamed activity)',
           start: a.startDate,
           finish: a.finishDate,
           status: a.status,
-        }));
-      if (bars.length) groups.push({ title: `Blueprint — ${bp.name}`, bars });
+        })),
+      });
     }
     const checkBars = tracking
       .filter((e) => e.scheduledDate)
@@ -118,7 +124,7 @@ export function TimelineView(props: {
       max = mid + 23 * DAY;
     }
     return { groups, milestones, min, max };
-  }, [plans, blueprints, roadmap, tracking, today]);
+  }, [activities, roadmap, tracking, today]);
 
   const hasContent = groups.length > 0 || milestones.length > 0;
   if (!hasContent) {
