@@ -7,7 +7,9 @@ import { createApp } from './app.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dbFile = process.env.CMT_DB_FILE ?? path.join(here, '..', 'data', 'proxima.db');
-const port = Number(process.env.PORT ?? 3001);
+// Deliberately NOT process.env.PORT: dev harnesses set PORT for the front-end
+// server, and picking it up here would collide with Vite.
+const port = Number(process.env.CMT_PORT ?? 3001);
 
 const db = openDb(dbFile);
 const app = createApp(db);
