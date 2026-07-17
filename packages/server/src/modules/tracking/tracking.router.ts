@@ -2,8 +2,6 @@ import { Router } from 'express';
 import {
   adaptActionCreateSchema,
   adaptActionUpdateSchema,
-  cmPerfEntryCreateSchema,
-  cmPerfEntryUpdateSchema,
   trackingEntryCreateSchema,
   trackingEntryUpdateSchema,
 } from '@cmt/domain';
@@ -22,12 +20,6 @@ export function createProjectTrackingRouter(db: Db): Router {
     res.status(201).json(service.createTracking(db, projectId(req), input));
   });
 
-  router.get('/cm-perf', (req, res) => res.json(service.listCmPerf(db, projectId(req))));
-  router.post('/cm-perf', (req, res) => {
-    const input = parseBody(cmPerfEntryCreateSchema, req.body);
-    res.status(201).json(service.createCmPerf(db, projectId(req), input));
-  });
-
   router.get('/adapt-actions', (req, res) => res.json(service.listAdapt(db, projectId(req))));
   router.post('/adapt-actions', (req, res) => {
     const input = parseBody(adaptActionCreateSchema, req.body);
@@ -37,8 +29,8 @@ export function createProjectTrackingRouter(db: Db): Router {
   return router;
 }
 
-/** Item routes: /api/tracking/:id, /api/cm-perf/:id, /api/adapt-actions/:id */
-export function createTrackingItemRouters(db: Db): { tracking: Router; cmPerf: Router; adapt: Router } {
+/** Item routes: /api/tracking/:id and /api/adapt-actions/:id */
+export function createTrackingItemRouters(db: Db): { tracking: Router; adapt: Router } {
   const tracking = Router();
   tracking.patch('/:id', (req, res) => {
     const input = parseBody(trackingEntryUpdateSchema, req.body);
@@ -46,16 +38,6 @@ export function createTrackingItemRouters(db: Db): { tracking: Router; cmPerf: R
   });
   tracking.delete('/:id', (req, res) => {
     service.deleteTracking(db, req.params.id);
-    res.status(204).end();
-  });
-
-  const cmPerf = Router();
-  cmPerf.patch('/:id', (req, res) => {
-    const input = parseBody(cmPerfEntryUpdateSchema, req.body);
-    res.json(service.updateCmPerf(db, req.params.id, input));
-  });
-  cmPerf.delete('/:id', (req, res) => {
-    service.deleteCmPerf(db, req.params.id);
     res.status(204).end();
   });
 
@@ -69,5 +51,5 @@ export function createTrackingItemRouters(db: Db): { tracking: Router; cmPerf: R
     res.status(204).end();
   });
 
-  return { tracking, cmPerf, adapt };
+  return { tracking, adapt };
 }

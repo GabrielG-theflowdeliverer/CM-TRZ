@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { activityProgress, addDays, isOverdue, isUpcoming } from './progress.js';
-import { buildProjectHealth, buildPortfolioSummary, type ProjectHealthInput } from './health.js';
+import {
+  aspectsImpactedHistogram,
+  barrierPointCounts,
+  buildPortfolioSummary,
+  buildProjectHealth,
+  degreeOfImpactHistogram,
+  worstCmPerfStatus,
+  type ProjectHealthInput,
+} from './health.js';
 
 const TODAY = '2026-07-17';
 
@@ -32,6 +40,37 @@ describe('isOverdue / isUpcoming / addDays', () => {
 
   it('adds days across month boundaries', () => {
     expect(addDays('2026-07-25', 14)).toBe('2026-08-08');
+  });
+});
+
+describe('project dashboard distributions', () => {
+  const groups = [
+    { aspectImpacts: [5, 4, 3, 0, 0, 0, 0, 0, 0, 0] }, // 3 aspects, degree 4
+    { aspectImpacts: [2, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, // 1 aspect, degree 2
+    { aspectImpacts: [1, 1, 1, 0, 0, 0, 0, 0, 0, 0] }, // 3 aspects, degree 1
+    { aspectImpacts: Array(10).fill(0) as number[] }, // unscored -> excluded
+  ];
+
+  it('builds the aspects-impacted histogram (1..10)', () => {
+    expect(aspectsImpactedHistogram(groups)).toEqual([1, 0, 2, 0, 0, 0, 0, 0, 0, 0]);
+  });
+
+  it('builds the degree-of-impact histogram (1..5, rounded)', () => {
+    expect(degreeOfImpactHistogram(groups)).toEqual([1, 1, 0, 1, 0]);
+  });
+
+  it('counts barrier points including No barrier', () => {
+    expect(barrierPointCounts(['Desire', 'Desire', 'No barrier', null])).toMatchObject({
+      Desire: 2,
+      'No barrier': 1,
+      Awareness: 0,
+    });
+  });
+
+  it('takes the most pessimistic CM perf status', () => {
+    expect(worstCmPerfStatus(['On Target', 'Behind Target', null])).toBe('Behind Target');
+    expect(worstCmPerfStatus(['Ahead of Target'])).toBe('Ahead of Target');
+    expect(worstCmPerfStatus([null, null])).toBeNull();
   });
 });
 

@@ -6,7 +6,10 @@ import type { Project } from '../lib/types';
 const NAV_SECTIONS: Array<{ title: string; items: Array<{ to: string; label: string }> }> = [
   {
     title: 'Project',
-    items: [{ to: 'settings', label: 'Settings' }],
+    items: [
+      { to: 'dashboard', label: 'Project Dashboard' },
+      { to: 'settings', label: 'Settings' },
+    ],
   },
   {
     title: 'Assess',

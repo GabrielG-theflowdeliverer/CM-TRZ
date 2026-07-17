@@ -73,6 +73,56 @@ export function buildProjectHealth(input: ProjectHealthInput, today: string): Pr
   };
 }
 
+/** Histogram of "Number of Aspects Impacted" across groups (index 1..10). */
+export function aspectsImpactedHistogram(groups: Array<{ aspectImpacts: Array<number | null> }>): number[] {
+  const counts = Array<number>(11).fill(0);
+  for (const g of groups) {
+    const n = g.aspectImpacts.filter((v) => typeof v === 'number' && v > 0).length;
+    if (n >= 1 && n <= 10) counts[n]!++;
+  }
+  return counts.slice(1);
+}
+
+/** Histogram of "Overall Degree of Impact" across groups, rounded into 1..5 buckets. */
+export function degreeOfImpactHistogram(groups: Array<{ aspectImpacts: Array<number | null> }>): number[] {
+  const counts = Array<number>(6).fill(0);
+  for (const g of groups) {
+    const degree = degreeOfImpact(g.aspectImpacts);
+    if (degree == null) continue;
+    const bucket = Math.min(5, Math.max(1, Math.round(degree)));
+    counts[bucket]!++;
+  }
+  return counts.slice(1);
+}
+
+/** Count of groups sitting at each ADKAR barrier point (plus "No barrier"). */
+export function barrierPointCounts(barriers: Array<BarrierPoint | null>): Record<string, number> {
+  const counts: Record<string, number> = {
+    Awareness: 0,
+    Desire: 0,
+    Knowledge: 0,
+    Ability: 0,
+    Reinforcement: 0,
+    'No barrier': 0,
+  };
+  for (const b of barriers) {
+    if (b) counts[b] = (counts[b] ?? 0) + 1;
+  }
+  return counts;
+}
+
+const CM_PERF_ORDER = ['No Progress', 'Well Behind Target', 'Behind Target', 'On Target', 'Ahead of Target'];
+
+/** The most pessimistic metric status across a report's items (dashboard signal). */
+export function worstCmPerfStatus(statuses: Array<string | null>): CmPerfStatus | null {
+  let worst: string | null = null;
+  for (const s of statuses) {
+    if (!s || !CM_PERF_ORDER.includes(s)) continue;
+    if (worst === null || CM_PERF_ORDER.indexOf(s) < CM_PERF_ORDER.indexOf(worst)) worst = s;
+  }
+  return worst as CmPerfStatus | null;
+}
+
 export interface PortfolioSummary {
   totalProjects: number;
   highRiskCount: number;

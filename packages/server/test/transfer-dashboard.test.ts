@@ -62,10 +62,11 @@ async function buildRichProject(name: string): Promise<string> {
     .post(`/api/plans/${plans[0].id}/activities`)
     .send({ name: 'Done task', status: 'Completed' })
     .expect(201);
-  await request(ctx.app)
-    .post(`/api/projects/${projectId}/cm-perf`)
-    .send({ type: 'Core Plan', description: 'Comms', status: 'On Target', completedDate: '2026-07-01' })
+  const { body: report } = await request(ctx.app)
+    .post(`/api/projects/${projectId}/cm-perf-reports`)
+    .send({ name: 'Status report', date: '2026-07-01' })
     .expect(201);
+  await request(ctx.app).patch(`/api/cm-perf-items/${report.items[0].id}`).send({ status: 'On Target' }).expect(200);
   return projectId;
 }
 
@@ -95,7 +96,8 @@ describe('export / import', () => {
       'activityGroups',
       'blueprints',
       'trackingEntries',
-      'cmPerfEntries',
+      'cmPerfReports',
+      'cmPerfItems',
     ] as const) {
       expect(dst.body[key]).toHaveLength(src.body[key].length);
     }
@@ -202,6 +204,28 @@ describe('dashboard', () => {
     expect(empty.pct).toBeNull();
     expect(empty.risk).toBeNull();
     expect(empty.progress.percentComplete).toBeNull();
+  });
+
+  it('serves the per-project dashboard with histograms and watch list data', async () => {
+    const projectId = await buildRichProject('Solo');
+    const { body: d } = await request(ctx.app).get(`/api/projects/${projectId}/dashboard`).expect(200);
+    expect(d.pct.scores.success).toBe(30);
+    expect(d.risk.quadrant).toBe('High');
+    // One group with 2 aspects impacted (4 and 2 -> degree 3).
+    expect(d.aspectsImpactedHistogram[1]).toBe(1); // bucket "2 aspects"
+    expect(d.degreeOfImpactHistogram[2]).toBe(1); // bucket "3"
+    expect(d.barrierCounts.Desire).toBe(1);
+    expect(d.groups).toHaveLength(1);
+    expect(d.groups[0]).toMatchObject({ name: 'Client Services', aspectsImpacted: 2, barrierPoint: 'Desire' });
+    expect(d.latestCmPerf.worstStatus).toBe('On Target');
+
+    // Watch list persists on the project (max 5 enforced by schema).
+    await request(ctx.app)
+      .patch(`/api/projects/${projectId}`)
+      .send({ watchGroupIds: [d.groups[0].id] })
+      .expect(200);
+    const { body: project } = await request(ctx.app).get(`/api/projects/${projectId}`).expect(200);
+    expect(project.watchGroupIds).toEqual([d.groups[0].id]);
   });
 
   it('excludes archived projects', async () => {

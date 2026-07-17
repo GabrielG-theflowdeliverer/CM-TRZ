@@ -49,7 +49,13 @@ function seedProjectDefaults(db: Db, projectId: string): void {
 export function updateProject(
   db: Db,
   id: string,
-  fields: { name?: string; projectType?: string | null; pmApproach?: string | null; archived?: boolean },
+  fields: {
+    name?: string;
+    projectType?: string | null;
+    pmApproach?: string | null;
+    archived?: boolean;
+    watchGroupIds?: string[];
+  },
 ): Project {
   if (!repo.updateProject(db, id, fields, nowIso())) notFound('Project');
   return getProject(db, id);

@@ -1,7 +1,10 @@
 import {
   ADKAR_LABELS,
+  aspectsImpactedHistogram,
+  barrierPointCounts,
   buildPortfolioSummary,
   buildProjectHealth,
+  degreeOfImpactHistogram,
   type ActivityStatus,
   type BarrierPoint,
   type CmPerfStatus,
@@ -13,11 +16,80 @@ import * as projects from '../projects/projects.service.js';
 import * as assessments from '../assessments/assessments.service.js';
 import * as impact from '../impact/impact.service.js';
 import * as roadmap from '../roadmap/roadmap.service.js';
+import * as cmPerf from '../cm-perf/cm-perf.service.js';
 
 export interface DashboardPayload {
   summary: ReturnType<typeof buildPortfolioSummary>;
   projects: ProjectHealth[];
   generatedAt: string;
+}
+
+export interface ProjectDashboardPayload {
+  project: ReturnType<typeof projects.getProject>;
+  pct: { label: string | null; date: string | null; scores: Record<string, number | null> } | null;
+  risk: { label: string | null; date: string | null; cc: number | null; oa: number | null; quadrant: string | null } | null;
+  aspectsImpactedHistogram: number[];
+  degreeOfImpactHistogram: number[];
+  barrierCounts: Record<string, number>;
+  groups: Array<{
+    id: string;
+    name: string;
+    numPeople: number | null;
+    aspectsImpacted: number;
+    degreeOfImpact: number | null;
+    barrierPoint: string | null;
+    riskQuadrant: string | null;
+  }>;
+  latestCmPerf: { id: string; name: string; date: string | null; worstStatus: string | null } | null;
+}
+
+/** Per-project dashboard (official Proxima's project landing page). */
+export function getProjectDashboard(db: Db, projectId: string): ProjectDashboardPayload {
+  const project = projects.getProject(db, projectId);
+  const latestPct = assessments.latestAssessment(db, projectId, 'pct');
+  const latestRisk = assessments.latestAssessment(db, projectId, 'risk', { kind: 'project', id: null });
+  const groups = impact.listGroups(db, projectId);
+  const histogramInput = groups.map((g) => ({ aspectImpacts: g.aspects.map((a) => a.impact) }));
+  const latestReport = cmPerf
+    .listReports(db, projectId)
+    .sort((a, b) => ((a.date ?? a.createdAt) < (b.date ?? b.createdAt) ? 1 : -1))[0];
+  return {
+    project,
+    pct: latestPct?.computed.pct
+      ? {
+          label: latestPct.label,
+          date: latestPct.completedDate ?? latestPct.scheduledDate,
+          scores: latestPct.computed.pct as unknown as Record<string, number | null>,
+        }
+      : null,
+    risk: latestRisk?.computed.risk
+      ? {
+          label: latestRisk.label,
+          date: latestRisk.completedDate ?? latestRisk.scheduledDate,
+          ...latestRisk.computed.risk,
+        }
+      : null,
+    aspectsImpactedHistogram: aspectsImpactedHistogram(histogramInput),
+    degreeOfImpactHistogram: degreeOfImpactHistogram(histogramInput),
+    barrierCounts: barrierPointCounts(groups.map((g) => g.computed.barrierPoint as BarrierPoint | null)),
+    groups: groups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      numPeople: g.numPeople,
+      aspectsImpacted: g.computed.aspectsImpacted,
+      degreeOfImpact: g.computed.degreeOfImpact,
+      barrierPoint: g.computed.barrierPoint,
+      riskQuadrant: g.computed.risk?.quadrant ?? null,
+    })),
+    latestCmPerf: latestReport
+      ? {
+          id: latestReport.id,
+          name: latestReport.name,
+          date: latestReport.date,
+          worstStatus: cmPerf.latestReportStatus(db, projectId),
+        }
+      : null,
+  };
 }
 
 export function getDashboard(db: Db): DashboardPayload {
@@ -38,12 +110,7 @@ export function getDashboard(db: Db): DashboardPayload {
         .all(project.id) as Array<{ status: string | null; finish_date: string | null }>
     ).map((r) => ({ status: r.status as ActivityStatus | null, finishDate: r.finish_date }));
 
-    const latestCmPerf = db
-      .prepare(
-        `SELECT status FROM cm_perf_entries WHERE project_id = ? AND status IS NOT NULL
-         ORDER BY COALESCE(completed_date, scheduled_date) DESC, position DESC LIMIT 1`,
-      )
-      .get(project.id) as { status: string | null } | undefined;
+    const latestCmPerfStatus = cmPerf.latestReportStatus(db, project.id);
 
     // Candidate "next milestone" dates: roadmap milestones + scheduled checks.
     const upcomingDates: Array<{ date: string; label: string }> = [];
@@ -90,7 +157,7 @@ export function getDashboard(db: Db): DashboardPayload {
         barrierPoint: g.computed.barrierPoint as BarrierPoint | null,
       })),
       activityStatuses,
-      latestCmPerfStatus: (latestCmPerf?.status as CmPerfStatus | null) ?? null,
+      latestCmPerfStatus: (latestCmPerfStatus as CmPerfStatus | null) ?? null,
       upcomingDates,
     };
     healths.push(buildProjectHealth(input, today));

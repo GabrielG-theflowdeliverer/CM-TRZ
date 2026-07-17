@@ -32,17 +32,31 @@ export interface ProjectExport {
   roadmapReleases: Record<string, unknown>[];
   roadmapAdkarMilestones: Record<string, unknown>[];
   trackingEntries: Record<string, unknown>[];
-  cmPerfEntries: Record<string, unknown>[];
+  cmPerfReports: Record<string, unknown>[];
+  cmPerfItems: Record<string, unknown>[];
   adaptActions: Record<string, unknown>[];
   projectDocs: Record<string, unknown>[];
   resistanceItems: Record<string, unknown>[];
 }
 
-/** Version 1 exports carried the pre-unification activity tables. */
-interface ProjectExportV1 extends Omit<ProjectExport, 'version' | 'activities' | 'activityAdkar' | 'activityGroups' | 'activityPlans' | 'activityBlueprints' | 'activityRoles'> {
+/** Version 1 exports carried the pre-unification activity tables and free-form CM perf entries. */
+interface ProjectExportV1
+  extends Omit<
+    ProjectExport,
+    | 'version'
+    | 'activities'
+    | 'activityAdkar'
+    | 'activityGroups'
+    | 'activityPlans'
+    | 'activityBlueprints'
+    | 'activityRoles'
+    | 'cmPerfReports'
+    | 'cmPerfItems'
+  > {
   version: 1;
   blueprintActivities: Record<string, unknown>[];
   planActivities: Record<string, unknown>[];
+  cmPerfEntries: Record<string, unknown>[];
 }
 
 /** Upgrade a v1 payload to the unified-activity v2 shape (same mapping as migration 002). */
@@ -97,7 +111,34 @@ function upgradeV1(v1: ProjectExportV1): ProjectExport {
     if (pa.adkar_outcome) activityAdkar.push({ activity_id: pa.id, element: pa.adkar_outcome });
     if (pa.group_id) activityGroups.push({ activity_id: pa.id, group_id: pa.group_id });
   }
-  const { blueprintActivities: _ba, planActivities: _pa, ...rest } = v1;
+  // Free-form v1 CM perf entries become one "Legacy entries" report.
+  const cmPerfReports: Record<string, unknown>[] = [];
+  const cmPerfItems: Record<string, unknown>[] = [];
+  const legacyEntries = v1.cmPerfEntries ?? [];
+  if (legacyEntries.length) {
+    const reportId = `${v1.project.id as string}:legacy-cm-perf`;
+    cmPerfReports.push({
+      id: reportId,
+      project_id: v1.project.id,
+      name: 'Legacy entries',
+      date: null,
+      status: 'Completed',
+      created_at: '',
+    });
+    legacyEntries.forEach((entry, i) => {
+      cmPerfItems.push({
+        id: entry.id ?? `legacy-item-${i}`,
+        report_id: reportId,
+        position: entry.position ?? i,
+        kind: entry.type === 'ADKAR Blueprint' ? 'blueprint' : entry.type ? 'plan' : 'other',
+        ref_id: null,
+        label: entry.description ?? entry.type ?? null,
+        status: entry.status ?? null,
+        description: entry.notes ?? null,
+      });
+    });
+  }
+  const { blueprintActivities: _ba, planActivities: _pa, cmPerfEntries: _ce, ...rest } = v1;
   return {
     ...rest,
     version: 2,
@@ -107,6 +148,8 @@ function upgradeV1(v1: ProjectExportV1): ProjectExport {
     activityPlans,
     activityBlueprints,
     activityRoles: [],
+    cmPerfReports,
+    cmPerfItems,
     // v1 milestone rows have no group_id column; default them to overall.
     roadmapAdkarMilestones: (v1.roadmapAdkarMilestones ?? []).map((m) => ({ group_id: '', ...m })),
   };
@@ -184,7 +227,12 @@ export function exportProject(db: Db, projectId: string): ProjectExport {
     roadmapReleases: rows(db, 'SELECT * FROM roadmap_releases WHERE project_id = ?', projectId),
     roadmapAdkarMilestones: rows(db, 'SELECT * FROM roadmap_adkar_milestones WHERE project_id = ?', projectId),
     trackingEntries: rows(db, 'SELECT * FROM tracking_entries WHERE project_id = ?', projectId),
-    cmPerfEntries: rows(db, 'SELECT * FROM cm_perf_entries WHERE project_id = ?', projectId),
+    cmPerfReports: rows(db, 'SELECT * FROM cm_perf_reports WHERE project_id = ?', projectId),
+    cmPerfItems: rows(
+      db,
+      `SELECT ci.* FROM cm_perf_items ci JOIN cm_perf_reports cr ON cr.id = ci.report_id WHERE cr.project_id = ?`,
+      projectId,
+    ),
     adaptActions: rows(db, 'SELECT * FROM adapt_actions WHERE project_id = ?', projectId),
     projectDocs: rows(db, 'SELECT * FROM project_docs WHERE project_id = ?', projectId),
     resistanceItems: rows(db, 'SELECT * FROM resistance_items WHERE project_id = ?', projectId),
@@ -318,7 +366,22 @@ export function importProject(
     for (const t of payload.trackingEntries) {
       insertRow(db, 'tracking_entries', { ...t, id: newId(), project_id: newProjectId });
     }
-    for (const c of payload.cmPerfEntries) insertRow(db, 'cm_perf_entries', { ...c, id: newId(), project_id: newProjectId });
+    const reportIds = new Map<string, string>();
+    for (const cr of payload.cmPerfReports) {
+      const id = newId();
+      reportIds.set(cr.id as string, id);
+      insertRow(db, 'cm_perf_reports', { ...cr, id, project_id: newProjectId });
+    }
+    for (const ci of payload.cmPerfItems) {
+      const reportId = remap(reportIds, ci.report_id);
+      if (!reportId) continue;
+      // ref_id points at a blueprint or plan; remap when possible, keep the label otherwise.
+      let refId: string | null = null;
+      if (typeof ci.ref_id === 'string') {
+        refId = ci.kind === 'blueprint' ? remap(blueprintIds, ci.ref_id) : remap(planIds, ci.ref_id);
+      }
+      insertRow(db, 'cm_perf_items', { ...ci, id: newId(), report_id: reportId, ref_id: refId });
+    }
     for (const a of payload.adaptActions) insertRow(db, 'adapt_actions', { ...a, id: newId(), project_id: newProjectId });
     for (const d of payload.projectDocs) insertRow(db, 'project_docs', { ...d, project_id: newProjectId });
     for (const ri of payload.resistanceItems) {

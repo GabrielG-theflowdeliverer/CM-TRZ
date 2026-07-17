@@ -1,6 +1,13 @@
 import { useMemo } from 'react';
-import { ADKAR_ELEMENTS, ADKAR_LABELS, TRACKING_SCHEDULE_LABELS, type TrackingSchedule } from '@cmt/domain';
-import type { Activity, Roadmap, TrackingEntry } from '../../lib/types';
+import {
+  ADKAR_ELEMENTS,
+  ADKAR_LABELS,
+  ASSESSMENT_TYPE_LABELS,
+  TRACKING_SCHEDULE_LABELS,
+  type CmPerfReport,
+  type TrackingSchedule,
+} from '@cmt/domain';
+import type { Activity, AssessmentDto, GroupDto, Roadmap, TrackingEntry } from '../../lib/types';
 
 interface TimelineBar {
   label: string;
@@ -50,14 +57,19 @@ function monthTicks(min: number, max: number): Array<{ time: number; label: stri
   return ticks;
 }
 
-/** Gantt-like chart of every planned activity, milestone and status check. */
+/** Gantt-like chart: milestones, activities, status checks, and the methodology
+ *  tracks (PCT runs = Organizational Performance, ADKAR runs = Individual
+ *  Performance, CM performance reports). */
 export function TimelineView(props: {
   activities: Activity[];
   roadmap: Roadmap | undefined;
   tracking: TrackingEntry[];
+  assessments: AssessmentDto[];
+  reports: CmPerfReport[];
+  groups: GroupDto[];
   today: string;
 }) {
-  const { activities, roadmap, tracking, today } = props;
+  const { activities, roadmap, tracking, assessments, reports, groups: impactedGroups, today } = props;
 
   const { groups, milestones, min, max } = useMemo(() => {
     const groups: TimelineGroup[] = [];
@@ -95,6 +107,37 @@ export function TimelineView(props: {
       }));
     if (checkBars.length) groups.push({ title: 'Status Checks', bars: checkBars });
 
+    // Methodology tracks: assessments and reports plotted at their dates.
+    const groupName = (a: AssessmentDto) =>
+      a.subjectKind === 'project'
+        ? 'Overall Change'
+        : (impactedGroups.find((g) => g.id === a.subjectId)?.name ?? 'Group');
+    const runBar = (a: AssessmentDto, label: string): TimelineBar | null => {
+      const date = a.completedDate ?? a.scheduledDate;
+      return date ? { label, start: date, finish: date, status: a.status } : null;
+    };
+    const pctBars = assessments
+      .filter((a) => a.type === 'pct')
+      .map((a, i) => runBar(a, a.label ?? `PCT run ${i + 1}`))
+      .filter((b): b is TimelineBar => !!b);
+    if (pctBars.length) groups.push({ title: 'Organizational Performance — PCT', bars: pctBars });
+    const adkarBars = assessments
+      .filter((a) => a.type === 'adkar' && a.subjectKind !== 'role')
+      .map((a) => runBar(a, `${groupName(a)}${a.label ? `: ${a.label}` : ''}`))
+      .filter((b): b is TimelineBar => !!b);
+    if (adkarBars.length) groups.push({ title: 'Individual Performance — ADKAR', bars: adkarBars });
+    const riskBars = assessments
+      .filter((a) => a.type === 'risk')
+      .map((a) =>
+        runBar(a, `${a.subjectKind === 'group' ? groupName(a) : ASSESSMENT_TYPE_LABELS.risk}${a.label ? `: ${a.label}` : ''}`),
+      )
+      .filter((b): b is TimelineBar => !!b);
+    if (riskBars.length) groups.push({ title: 'Risk Assessments', bars: riskBars });
+    const reportBars = reports
+      .filter((r) => r.date)
+      .map((r) => ({ label: r.name, start: r.date, finish: r.date, status: r.status }));
+    if (reportBars.length) groups.push({ title: 'CM Performance — Reports', bars: reportBars });
+
     const milestones: Milestone[] = [];
     if (roadmap) {
       if (roadmap.kickoffDate) milestones.push({ date: roadmap.kickoffDate, label: 'Kickoff' });
@@ -124,7 +167,7 @@ export function TimelineView(props: {
       max = mid + 23 * DAY;
     }
     return { groups, milestones, min, max };
-  }, [activities, roadmap, tracking, today]);
+  }, [activities, roadmap, tracking, assessments, reports, impactedGroups, today]);
 
   const hasContent = groups.length > 0 || milestones.length > 0;
   if (!hasContent) {

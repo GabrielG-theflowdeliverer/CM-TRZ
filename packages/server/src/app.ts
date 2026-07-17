@@ -15,8 +15,9 @@ import { createPlansRouter, createProjectPlansRouter } from './modules/plans/pla
 import { createActivitiesRouter, createProjectActivitiesRouter } from './modules/activities/activities.router.js';
 import { createProjectTrackingRouter, createTrackingItemRouters } from './modules/tracking/tracking.router.js';
 import { createProjectDocsRouter, createResistanceRouter } from './modules/docs/docs.router.js';
+import { createCmPerfRouters, createProjectCmPerfRouter } from './modules/cm-perf/cm-perf.router.js';
 import { createImportRouter, createProjectExportRouter } from './modules/transfer/transfer.router.js';
-import { createDashboardRouter } from './modules/dashboard/dashboard.router.js';
+import { createDashboardRouter, createProjectDashboardRouter } from './modules/dashboard/dashboard.router.js';
 
 /** Composition root: wires every feature module onto the /api surface. */
 export function createApp(db: Db): Express {
@@ -31,6 +32,8 @@ export function createApp(db: Db): Express {
   app.use('/api/projects/:projectId/blueprints', createProjectBlueprintsRouter(db));
   app.use('/api/projects/:projectId/plans', createProjectPlansRouter(db));
   app.use('/api/projects/:projectId/activities', createProjectActivitiesRouter(db));
+  app.use('/api/projects/:projectId/cm-perf-reports', createProjectCmPerfRouter(db));
+  app.use('/api/projects/:projectId/dashboard', createProjectDashboardRouter(db));
   app.use('/api/projects/:projectId/export', createProjectExportRouter(db));
   app.use('/api/projects/:projectId', createProjectTrackingRouter(db));
   app.use('/api/projects/:projectId', createProjectDocsRouter(db));
@@ -46,8 +49,10 @@ export function createApp(db: Db): Express {
   app.use('/api/activities', createActivitiesRouter(db));
   const trackingRouters = createTrackingItemRouters(db);
   app.use('/api/tracking', trackingRouters.tracking);
-  app.use('/api/cm-perf', trackingRouters.cmPerf);
   app.use('/api/adapt-actions', trackingRouters.adapt);
+  const cmPerfRouters = createCmPerfRouters(db);
+  app.use('/api/cm-perf-reports', cmPerfRouters.reports);
+  app.use('/api/cm-perf-items', cmPerfRouters.items);
   app.use('/api/resistance', createResistanceRouter(db));
 
   // Cross-project

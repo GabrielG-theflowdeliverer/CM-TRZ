@@ -14,6 +14,8 @@ export const projectUpdateSchema = z.object({
   projectType: z.string().max(200).nullable().optional(),
   pmApproach: pmApproachSchema.nullable().optional(),
   archived: z.boolean().optional(),
+  /** Key Impacted Groups watch list shown on the project dashboard (max 5). */
+  watchGroupIds: z.array(z.string()).max(5).optional(),
 });
 
 export interface Project {
@@ -22,6 +24,7 @@ export interface Project {
   projectType: string | null;
   pmApproach: string | null;
   archived: boolean;
+  watchGroupIds: string[];
   createdAt: string;
   updatedAt: string;
 }

@@ -13,6 +13,9 @@ import type { Roadmap, TrackingEntry } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { DateInput, Select, TextArea } from '../../ui/controls';
 import { useActivities } from '../activities/useActivities';
+import { useAssessments } from '../assessments/useAssessments';
+import { useGroups } from '../impact/useGroups';
+import { useCmPerfReports } from './CmPerformancePage';
 import { TimelineView } from './TimelineView';
 
 export function TrackingPage() {
@@ -20,6 +23,9 @@ export function TrackingPage() {
   const queryClient = useQueryClient();
   const [view, setView] = useState<'timeline' | 'schedules'>('timeline');
   const { data: activities } = useActivities(projectId);
+  const { data: assessments } = useAssessments(projectId);
+  const { data: reports } = useCmPerfReports(projectId);
+  const { data: groups } = useGroups(projectId);
   const { data: entries } = useQuery({
     queryKey: ['tracking', projectId],
     queryFn: () => api.get<TrackingEntry[]>(`/api/projects/${projectId}/tracking`),
@@ -84,6 +90,9 @@ export function TrackingPage() {
           activities={activities ?? []}
           roadmap={roadmap}
           tracking={entries ?? []}
+          assessments={assessments ?? []}
+          reports={reports ?? []}
+          groups={groups ?? []}
           today={new Date().toISOString().slice(0, 10)}
         />
       )}

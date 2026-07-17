@@ -54,17 +54,29 @@ describe('tracking schedules and CM performance', () => {
     expect(updated.status).toBe('Completed');
   });
 
-  it('tracks CM performance with the five-level status vocabulary', async () => {
-    const { body: entry } = await request(ctx.app)
-      .post(`/api/projects/${projectId}/cm-perf`)
-      .send({ type: 'ADKAR Blueprint', description: 'Overall', status: 'Behind Target' })
+  it('creates CM performance reports that auto-enumerate blueprints and plans', async () => {
+    // Seeded project: 1 overall blueprint + 4 core plans -> 5 report items.
+    const { body: report } = await request(ctx.app)
+      .post(`/api/projects/${projectId}/cm-perf-reports`)
+      .send({ name: 'Q3 report', date: '2026-08-01' })
       .expect(201);
-    expect(entry.status).toBe('Behind Target');
+    expect(report.items).toHaveLength(5);
+    expect(report.items.filter((i: { kind: string }) => i.kind === 'blueprint')).toHaveLength(1);
+    expect(report.items.map((i: { label: string }) => i.label)).toContain('Communications Plan');
+
+    const item = report.items[0];
+    const { body: after } = await request(ctx.app)
+      .patch(`/api/cm-perf-items/${item.id}`)
+      .send({ status: 'Behind Target', description: 'Awareness activities slipping' })
+      .expect(200);
+    expect(after.items[0].status).toBe('Behind Target');
+
+    await request(ctx.app).patch(`/api/cm-perf-items/${item.id}`).send({ status: 'Kind of OK' }).expect(400);
     await request(ctx.app)
-      .post(`/api/projects/${projectId}/cm-perf`)
-      .send({ status: 'Kind of OK' })
-      .expect(400);
-    await request(ctx.app).delete(`/api/cm-perf/${entry.id}`).expect(204);
+      .patch(`/api/cm-perf-reports/${report.id}`)
+      .send({ status: 'Completed' })
+      .expect(200);
+    await request(ctx.app).delete(`/api/cm-perf-reports/${report.id}`).expect(204);
   });
 
   it('manages adapt actions blocks', async () => {

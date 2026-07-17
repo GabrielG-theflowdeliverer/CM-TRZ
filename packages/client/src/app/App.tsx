@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { HomePage } from '../features/projects/HomePage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { ProjectDashboardPage } from '../features/dashboard/ProjectDashboardPage';
 import { ProjectLayout } from './ProjectLayout';
 import { ProjectSettingsPage } from '../features/projects/ProjectSettingsPage';
 import { AssessmentsHubPage } from '../features/assessments/AssessmentsHubPage';
@@ -20,7 +21,7 @@ import { BlueprintDetailPage } from '../features/blueprints/BlueprintDetailPage'
 import { PlansPage } from '../features/plans/PlansPage';
 import { PlanDetailPage } from '../features/plans/PlanDetailPage';
 import { TrackingPage } from '../features/tracking/TrackingPage';
-import { CmPerformancePage } from '../features/tracking/CmPerformancePage';
+import { CmPerformancePage, CmPerfReportPage } from '../features/tracking/CmPerformancePage';
 import { AdaptActionsPage } from '../features/tracking/AdaptActionsPage';
 import { ReferencePage } from '../features/reference/ReferencePage';
 
@@ -30,7 +31,8 @@ export function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/projects/:projectId" element={<ProjectLayout />}>
-        <Route index element={<Navigate to="settings" replace />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<ProjectDashboardPage />} />
         <Route path="settings" element={<ProjectSettingsPage />} />
         <Route path="assessments" element={<AssessmentsHubPage />} />
         <Route path="assessments/:assessmentId" element={<AssessmentRunPage />} />
@@ -50,6 +52,7 @@ export function App() {
         <Route path="plans/:planId" element={<PlanDetailPage />} />
         <Route path="tracking" element={<TrackingPage />} />
         <Route path="cm-performance" element={<CmPerformancePage />} />
+        <Route path="cm-performance/:reportId" element={<CmPerfReportPage />} />
         <Route path="adapt-actions" element={<AdaptActionsPage />} />
         <Route path="reference" element={<ReferencePage />} />
       </Route>

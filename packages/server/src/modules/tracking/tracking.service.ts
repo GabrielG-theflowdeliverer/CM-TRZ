@@ -1,4 +1,4 @@
-import type { AdaptAction, CmPerfEntry, TrackingEntry } from '@cmt/domain';
+import type { AdaptAction, TrackingEntry } from '@cmt/domain';
 import { newId, type Db } from '../../infra/db.js';
 import { notFound } from '../../infra/http.js';
 import { getProject } from '../projects/projects.service.js';
@@ -101,95 +101,6 @@ export function updateTracking(
 
 export function deleteTracking(db: Db, id: string): void {
   if (db.prepare('DELETE FROM tracking_entries WHERE id = ?').run(id).changes === 0) notFound('Tracking entry');
-}
-
-// ---------- CM performance entries ----------
-
-interface CmPerfRow {
-  id: string;
-  project_id: string;
-  position: number;
-  type: string | null;
-  description: string | null;
-  scheduled_date: string | null;
-  completed_date: string | null;
-  status: string | null;
-  notes: string | null;
-}
-
-function toCmPerf(r: CmPerfRow): CmPerfEntry {
-  return {
-    id: r.id,
-    projectId: r.project_id,
-    position: r.position,
-    type: r.type,
-    description: r.description,
-    scheduledDate: r.scheduled_date,
-    completedDate: r.completed_date,
-    status: r.status,
-    notes: r.notes,
-  };
-}
-
-export function listCmPerf(db: Db, projectId: string): CmPerfEntry[] {
-  getProject(db, projectId);
-  const rows = db
-    .prepare('SELECT * FROM cm_perf_entries WHERE project_id = ? ORDER BY position, rowid')
-    .all(projectId) as CmPerfRow[];
-  return rows.map(toCmPerf);
-}
-
-export function createCmPerf(
-  db: Db,
-  projectId: string,
-  input: Partial<Omit<CmPerfEntry, 'id' | 'projectId' | 'position'>>,
-): CmPerfEntry {
-  getProject(db, projectId);
-  const id = newId();
-  const pos = db
-    .prepare('SELECT COALESCE(MAX(position) + 1, 0) AS pos FROM cm_perf_entries WHERE project_id = ?')
-    .get(projectId) as { pos: number };
-  db.prepare(
-    `INSERT INTO cm_perf_entries (id, project_id, position, type, description, scheduled_date, completed_date, status, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    projectId,
-    pos.pos,
-    input.type ?? null,
-    input.description ?? null,
-    input.scheduledDate ?? null,
-    input.completedDate ?? null,
-    input.status ?? null,
-    input.notes ?? null,
-  );
-  return toCmPerf(db.prepare('SELECT * FROM cm_perf_entries WHERE id = ?').get(id) as CmPerfRow);
-}
-
-export function updateCmPerf(
-  db: Db,
-  id: string,
-  fields: Partial<Omit<CmPerfEntry, 'id' | 'projectId'>>,
-): CmPerfEntry {
-  const current = db.prepare('SELECT * FROM cm_perf_entries WHERE id = ?').get(id) as CmPerfRow | undefined;
-  if (!current) notFound('CM performance entry');
-  db.prepare(
-    `UPDATE cm_perf_entries SET type = ?, description = ?, scheduled_date = ?, completed_date = ?, status = ?, notes = ?, position = ? WHERE id = ?`,
-  ).run(
-    fields.type !== undefined ? fields.type : current.type,
-    fields.description !== undefined ? fields.description : current.description,
-    fields.scheduledDate !== undefined ? fields.scheduledDate : current.scheduled_date,
-    fields.completedDate !== undefined ? fields.completedDate : current.completed_date,
-    fields.status !== undefined ? fields.status : current.status,
-    fields.notes !== undefined ? fields.notes : current.notes,
-    fields.position ?? current.position,
-    id,
-  );
-  return toCmPerf(db.prepare('SELECT * FROM cm_perf_entries WHERE id = ?').get(id) as CmPerfRow);
-}
-
-export function deleteCmPerf(db: Db, id: string): void {
-  if (db.prepare('DELETE FROM cm_perf_entries WHERE id = ?').run(id).changes === 0) notFound('CM performance entry');
 }
 
 // ---------- adapt actions ----------

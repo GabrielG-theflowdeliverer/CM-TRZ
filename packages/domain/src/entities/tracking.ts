@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ACTIVITY_STATUSES, CM_PERF_STATUSES, CM_PERF_TYPES, TRACKING_SCHEDULES } from '../vocab/index.js';
+import { ACTIVITY_STATUSES, CM_PERF_STATUSES, TRACKING_SCHEDULES } from '../vocab/index.js';
 import { nullableDate, nullableText } from './common.js';
 
 export const trackingEntryCreateSchema = z.object({
@@ -29,29 +29,43 @@ export interface TrackingEntry {
   notes: string | null;
 }
 
-export const cmPerfEntryCreateSchema = z.object({
-  type: z.enum(CM_PERF_TYPES).nullable().optional(),
-  description: nullableText.optional(),
-  scheduledDate: nullableDate.optional(),
-  completedDate: nullableDate.optional(),
+export const CM_PERF_ITEM_KINDS = ['blueprint', 'plan', 'other'] as const;
+
+export const cmPerfReportCreateSchema = z.object({
+  name: z.string().min(1).max(300),
+  date: nullableDate.optional(),
+});
+
+export const cmPerfReportUpdateSchema = z.object({
+  name: z.string().min(1).max(300).optional(),
+  date: nullableDate.optional(),
+  status: z.enum(ACTIVITY_STATUSES).nullable().optional(),
+});
+
+export const cmPerfItemUpdateSchema = z.object({
   status: z.enum(CM_PERF_STATUSES).nullable().optional(),
-  notes: nullableText.optional(),
+  description: nullableText.optional(),
 });
 
-export const cmPerfEntryUpdateSchema = cmPerfEntryCreateSchema.partial().extend({
-  position: z.number().int().min(0).optional(),
-});
+export interface CmPerfItem {
+  id: string;
+  reportId: string;
+  position: number;
+  kind: string;
+  refId: string | null;
+  label: string | null;
+  status: string | null;
+  description: string | null;
+}
 
-export interface CmPerfEntry {
+export interface CmPerfReport {
   id: string;
   projectId: string;
-  position: number;
-  type: string | null;
-  description: string | null;
-  scheduledDate: string | null;
-  completedDate: string | null;
+  name: string;
+  date: string | null;
   status: string | null;
-  notes: string | null;
+  createdAt: string;
+  items: CmPerfItem[];
 }
 
 export const adaptActionCreateSchema = z.object({

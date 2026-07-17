@@ -7,17 +7,25 @@ interface ProjectRow {
   project_type: string | null;
   pm_approach: string | null;
   archived: number;
+  watch_group_ids: string | null;
   created_at: string;
   updated_at: string;
 }
 
 function toProject(row: ProjectRow): Project {
+  let watchGroupIds: string[] = [];
+  try {
+    watchGroupIds = row.watch_group_ids ? (JSON.parse(row.watch_group_ids) as string[]) : [];
+  } catch {
+    watchGroupIds = [];
+  }
   return {
     id: row.id,
     name: row.name,
     projectType: row.project_type,
     pmApproach: row.pm_approach,
     archived: row.archived === 1,
+    watchGroupIds,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -46,18 +54,25 @@ export function insertProject(
 export function updateProject(
   db: Db,
   id: string,
-  fields: { name?: string; projectType?: string | null; pmApproach?: string | null; archived?: boolean },
+  fields: {
+    name?: string;
+    projectType?: string | null;
+    pmApproach?: string | null;
+    archived?: boolean;
+    watchGroupIds?: string[];
+  },
   updatedAt: string,
 ): boolean {
   const current = getProject(db, id);
   if (!current) return false;
   db.prepare(
-    `UPDATE projects SET name = ?, project_type = ?, pm_approach = ?, archived = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE projects SET name = ?, project_type = ?, pm_approach = ?, archived = ?, watch_group_ids = ?, updated_at = ? WHERE id = ?`,
   ).run(
     fields.name ?? current.name,
     fields.projectType !== undefined ? fields.projectType : current.projectType,
     fields.pmApproach !== undefined ? fields.pmApproach : current.pmApproach,
     (fields.archived ?? current.archived) ? 1 : 0,
+    JSON.stringify(fields.watchGroupIds ?? current.watchGroupIds),
     updatedAt,
     id,
   );
