@@ -50,12 +50,21 @@ export function RiskEditor(props: { run: AssessmentDto; onScore: (itemKey: strin
         </div>
       </div>
 
-      {RISK_SECTION_KEYS.map((section) => (
+      {RISK_SECTION_KEYS.map((section) => {
+        const answered = RISK_FACTORS[section].filter((_, i) => run.responses[riskItemKey(section, i)] != null).length;
+        const total = RISK_FACTORS[section].length;
+        const sum = section === 'cc' ? risk.cc : risk.oa;
+        return (
         <div key={section} className="cmt-card">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="font-semibold">{RISK_SECTION_LABELS[section]}</h3>
             <span className="text-sm text-slate-500">
-              Sum: <strong>{section === 'cc' ? (risk.cc ?? 'NA') : (risk.oa ?? 'NA')}</strong> / 70
+              Sum: <strong>{sum ?? 'NA'}</strong> / 70
+              {sum == null && (
+                <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${answered > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'}`}>
+                  {answered}/{total} answered — the sum appears once every factor is scored
+                </span>
+              )}
             </span>
           </div>
           <table className="w-full">
@@ -71,8 +80,9 @@ export function RiskEditor(props: { run: AssessmentDto; onScore: (itemKey: strin
             <tbody>
               {RISK_FACTORS[section].map((factor, i) => {
                 const key = riskItemKey(section, i);
+                const missing = answered > 0 && run.responses[key] == null;
                 return (
-                  <tr key={key}>
+                  <tr key={key} className={missing ? 'bg-amber-50' : ''}>
                     <td className="cmt-td text-slate-400">{i + 1}</td>
                     <td className="cmt-td font-medium">{factor.factor}</td>
                     <td className="cmt-td text-xs text-slate-500">{factor.min}</td>
@@ -86,7 +96,8 @@ export function RiskEditor(props: { run: AssessmentDto; onScore: (itemKey: strin
             </tbody>
           </table>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

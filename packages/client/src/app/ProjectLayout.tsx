@@ -21,7 +21,7 @@ const NAV_SECTIONS: Array<{ title: string; items: Array<{ to: string; label: str
       { to: 'roles', label: 'Roles' },
       { to: 'resources', label: 'Resources & Governance' },
       { to: 'resistance', label: 'Resistance' },
-      { to: 'roadmap', label: 'Roadmap & Timeline' },
+      { to: 'roadmap', label: 'Roadmap' },
     ],
   },
   {

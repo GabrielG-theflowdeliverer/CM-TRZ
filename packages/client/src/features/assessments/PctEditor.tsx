@@ -39,11 +39,20 @@ export function PctEditor(props: { run: AssessmentDto; onScore: (itemKey: string
         </div>
       </div>
 
-      {PCT_ASPECT_KEYS.map((aspect) => (
+      {PCT_ASPECT_KEYS.map((aspect) => {
+        const answered = PCT_FACTORS[aspect].filter((_, i) => run.responses[pctItemKey(aspect, i)] != null).length;
+        return (
         <div key={aspect} className="cmt-card">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="font-semibold">{PCT_ASPECT_LABELS[aspect]}</h3>
-            <BandChip label="Score" score={scores[aspect]} />
+            <span className="flex items-center gap-2">
+              {scores[aspect] == null && answered > 0 && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                  {answered}/10 answered — the score appears once every factor is scored
+                </span>
+              )}
+              <BandChip label="Score" score={scores[aspect]} />
+            </span>
           </div>
           <table className="w-full">
             <thead>
@@ -56,8 +65,9 @@ export function PctEditor(props: { run: AssessmentDto; onScore: (itemKey: string
             <tbody>
               {PCT_FACTORS[aspect].map((factor, i) => {
                 const key = pctItemKey(aspect, i);
+                const missing = answered > 0 && run.responses[key] == null;
                 return (
-                  <tr key={key}>
+                  <tr key={key} className={missing ? 'bg-amber-50' : ''}>
                     <td className="cmt-td text-slate-400">{i + 1}</td>
                     <td className="cmt-td">{factor}</td>
                     <td className="cmt-td">
@@ -69,7 +79,8 @@ export function PctEditor(props: { run: AssessmentDto; onScore: (itemKey: string
             </tbody>
           </table>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

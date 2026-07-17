@@ -102,24 +102,24 @@ export function RolesPage() {
             </div>
             <p className="mb-3 text-xs text-slate-500">{ROSTER_HINTS[roster]}</p>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1150px]">
+              <table className="w-full min-w-[1900px]">
                 <thead>
                   <tr>
-                    <th className="cmt-th w-40">Role Name</th>
-                    <th className="cmt-th w-32">Initials or Full Name</th>
-                    <th className="cmt-th w-44">Impacted Group(s)</th>
-                    <th className="cmt-th w-52" title={ROLE_COLUMN_HELP.roleDefinition}>
+                    <th className="cmt-th min-w-48">Role Name</th>
+                    <th className="cmt-th min-w-36">Initials or Full Name</th>
+                    <th className="cmt-th min-w-48">Impacted Group(s)</th>
+                    <th className="cmt-th min-w-60" title={ROLE_COLUMN_HELP.roleDefinition}>
                       Role Definition (I __ by __)
                     </th>
-                    <th className="cmt-th w-28">Support</th>
-                    <th className="cmt-th w-28">Influence</th>
+                    <th className="cmt-th min-w-28">Support</th>
+                    <th className="cmt-th min-w-28">Influence</th>
                     {ADKAR_ELEMENTS.map((el) => (
-                      <th key={el} className="cmt-th text-center" title={el}>
+                      <th key={el} className="cmt-th w-40 text-center" title={el}>
                         {ADKAR_SHORT[el]}
                       </th>
                     ))}
-                    <th className="cmt-th">Barrier</th>
-                    <th className="cmt-th w-52" title={ROLE_COLUMN_HELP.activationTactics}>
+                    <th className="cmt-th min-w-28">Barrier</th>
+                    <th className="cmt-th min-w-60" title={ROLE_COLUMN_HELP.activationTactics}>
                       Activation Tactics
                     </th>
                     <th className="cmt-th w-10"></th>

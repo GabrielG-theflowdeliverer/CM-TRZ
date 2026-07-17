@@ -31,12 +31,25 @@ export function useInvalidateAssessments(projectId: string) {
 export function useSaveResponses(projectId: string, assessmentId: string) {
   const queryClient = useQueryClient();
   const invalidate = useInvalidateAssessments(projectId);
+  const mutationKey = ['save-responses', assessmentId];
   return useMutation({
+    mutationKey,
     mutationFn: (responses: Record<string, number | null>) =>
       api.put<AssessmentDto>(`/api/assessments/${assessmentId}/responses`, responses),
-    onSuccess: (data) => {
-      queryClient.setQueryData(['assessment', assessmentId], data);
-      invalidate();
+    // Optimistically merge the clicked score so the picker reflects it instantly.
+    onMutate: (responses) => {
+      queryClient.setQueryData<AssessmentDto>(['assessment', assessmentId], (old) =>
+        old ? { ...old, responses: { ...old.responses, ...responses } } : old,
+      );
+    },
+    // Rapid clicks fire parallel PUTs whose full-state responses can arrive out of
+    // order; only let the LAST in-flight save write the server payload to the cache.
+    onSettled: (data) => {
+      if (queryClient.isMutating({ mutationKey }) === 1) {
+        if (data) queryClient.setQueryData(['assessment', assessmentId], data);
+        else void queryClient.invalidateQueries({ queryKey: ['assessment', assessmentId] });
+        invalidate();
+      }
     },
   });
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ACTIVITY_STATUSES,
@@ -11,10 +12,16 @@ import { api } from '../../lib/api';
 import type { Roadmap, TrackingEntry } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { DateInput, Select, TextArea } from '../../ui/controls';
+import { usePlans } from '../plans/PlansPage';
+import { useBlueprints } from '../blueprints/useBlueprints';
+import { TimelineView } from './TimelineView';
 
 export function TrackingPage() {
   const { projectId } = useProject();
   const queryClient = useQueryClient();
+  const [view, setView] = useState<'timeline' | 'schedules'>('timeline');
+  const { data: plans } = usePlans(projectId);
+  const { data: blueprints } = useBlueprints(projectId);
   const { data: entries } = useQuery({
     queryKey: ['tracking', projectId],
     queryFn: () => api.get<TrackingEntry[]>(`/api/projects/${projectId}/tracking`),
@@ -55,6 +62,37 @@ export function TrackingPage() {
         <p className="text-sm text-slate-500">Phase 2 — Manage Change. Key dates pulled live from the Roadmap.</p>
       </div>
 
+      <div className="flex gap-1">
+        {(
+          [
+            ['timeline', 'Timeline'],
+            ['schedules', 'Status Check Schedules'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            className={`rounded-t px-3 py-1.5 text-sm font-medium ${
+              view === key ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+            onClick={() => setView(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'timeline' && (
+        <TimelineView
+          plans={plans ?? []}
+          blueprints={blueprints ?? []}
+          roadmap={roadmap}
+          tracking={entries ?? []}
+          today={new Date().toISOString().slice(0, 10)}
+        />
+      )}
+
+      {view === 'schedules' && (
+      <>
       <div className="cmt-card">
         <h3 className="mb-2 font-semibold">Key Dates (from Roadmap)</h3>
         <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm md:grid-cols-4">
@@ -168,6 +206,8 @@ export function TrackingPage() {
           </section>
         );
       })}
+      </>
+      )}
     </div>
   );
 }
