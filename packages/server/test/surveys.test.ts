@@ -65,6 +65,19 @@ describe('survey campaigns', () => {
     expect(tokens.size).toBe(2);
   });
 
+  it('rejects a second campaign for the same assessment (one per assessment)', async () => {
+    const role = await addRole(projectId, 'J. Smith');
+    await request(ctx.app)
+      .post(`/api/projects/${projectId}/surveys`)
+      .send({ assessmentId, roleIds: [role] })
+      .expect(201);
+    const { body } = await request(ctx.app)
+      .post(`/api/projects/${projectId}/surveys`)
+      .send({ assessmentId, roleIds: [role] })
+      .expect(409);
+    expect(body.error).toMatch(/already exists/i);
+  });
+
   it('rejects a role with no named person (recipients must be identifiable)', async () => {
     const emptyRole = await addRole(projectId, null);
     const { body } = await request(ctx.app)
@@ -211,11 +224,13 @@ describe('assessment survey roll-up', () => {
     expect(a.computed.competency.total).toBe(3 * LEN);
     // ...but the note is untouched.
     expect(a.notes).toBe('keep me');
-    // Individual results + distribution are attached.
+    // Each respondent's own answers + computed score are attached.
     expect(a.survey.respondentCount).toBe(2);
     const smith = a.survey.individuals.find((i: { personName: string }) => i.personName === 'J. Smith');
+    const lee = a.survey.individuals.find((i: { personName: string }) => i.personName === 'A. Lee');
     expect(smith.computed.competency.total).toBe(4 * LEN);
-    expect(a.survey.distribution[KEY0]).toEqual({ 2: 1, 4: 1 });
+    expect(smith.responses[KEY0]).toBe(4);
+    expect(lee.responses[KEY0]).toBe(2);
   });
 
   it('falls back to hand-entered responses when nobody has submitted yet', async () => {

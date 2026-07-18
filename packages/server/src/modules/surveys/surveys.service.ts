@@ -35,6 +35,13 @@ export function createCampaign(
   const assessment = assessmentsRepo.getAssessment(db, input.assessmentId);
   if (!assessment || assessment.projectId !== projectId) notFound('Assessment');
 
+  // One campaign per assessment: the roll-up aggregates every submission for
+  // the assessment, and the UI surfaces a single campaign, so a second would
+  // silently double-count and hide recipients.
+  if (repo.hasCampaignForAssessment(db, input.assessmentId)) {
+    throw new HttpError(409, 'A survey campaign already exists for this assessment');
+  }
+
   const roles = [...new Set(input.roleIds)].map((roleId) => {
     const role = getRoleRow(db, roleId);
     if (!role || role.project_id !== projectId) {
@@ -117,14 +124,13 @@ export interface SurveyIndividual {
 
 /**
  * The survey roll-up for an assessment: the aggregated responses (which
- * supersede the practitioner's hand-entered ones for scoring), each item's
- * answer distribution, and the individual submissions. Null when nobody has
- * submitted yet — the assessment then falls back to its own responses.
+ * supersede the practitioner's hand-entered ones for scoring) and each
+ * individual's own submission. Null when nobody has submitted yet — the
+ * assessment then falls back to its own responses.
  */
 export interface AssessmentSurvey {
   respondentCount: number;
   responses: Record<string, number | null>;
-  distribution: Record<string, Record<number, number>>;
   individuals: SurveyIndividual[];
 }
 
@@ -132,13 +138,9 @@ export function getAssessmentSurvey(db: Db, assessmentId: string): AssessmentSur
   const submitted = repo.listSubmittedForAssessment(db, assessmentId);
   if (submitted.length === 0) return null;
   const agg = aggregateResponses(submitted.map((s) => s.responses));
-  const distribution = Object.fromEntries(
-    Object.entries(agg.byKey).map(([key, item]) => [key, item.distribution]),
-  );
   return {
     respondentCount: submitted.length,
     responses: agg.mean,
-    distribution,
     individuals: submitted.map((s) => ({ personName: s.personName, responses: s.responses })),
   };
 }
