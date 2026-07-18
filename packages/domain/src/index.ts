@@ -33,3 +33,4 @@ export * from './entities/plan.js';
 export * from './entities/roadmap.js';
 export * from './entities/tracking.js';
 export * from './entities/docs.js';
+export * from './entities/survey.js';

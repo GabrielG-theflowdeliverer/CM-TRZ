@@ -18,6 +18,7 @@ import { createProjectDocsRouter, createResistanceRouter } from './modules/docs/
 import { createCmPerfRouters, createProjectCmPerfRouter } from './modules/cm-perf/cm-perf.router.js';
 import { createImportRouter, createProjectExportRouter } from './modules/transfer/transfer.router.js';
 import { createDashboardRouter, createProjectDashboardRouter } from './modules/dashboard/dashboard.router.js';
+import { createProjectSurveysRouter, createSurveysRouter } from './modules/surveys/surveys.router.js';
 
 /** Composition root: wires every feature module onto the /api surface. */
 export function createApp(db: Db): Express {
@@ -44,6 +45,7 @@ export function createApp(db: Db): Express {
   app.use('/api/projects/:projectId/activities', createProjectActivitiesRouter(db));
   app.use('/api/projects/:projectId/cm-perf-reports', createProjectCmPerfRouter(db));
   app.use('/api/projects/:projectId/dashboard', createProjectDashboardRouter(db));
+  app.use('/api/projects/:projectId/surveys', createProjectSurveysRouter(db));
   app.use('/api/projects/:projectId/export', createProjectExportRouter(db));
   app.use('/api/projects/:projectId', createProjectTrackingRouter(db));
   app.use('/api/projects/:projectId', createProjectDocsRouter(db));
@@ -64,6 +66,7 @@ export function createApp(db: Db): Express {
   app.use('/api/cm-perf-reports', cmPerfRouters.reports);
   app.use('/api/cm-perf-items', cmPerfRouters.items);
   app.use('/api/resistance', createResistanceRouter(db));
+  app.use('/api/surveys', createSurveysRouter(db));
 
   // Cross-project
   app.use('/api/import', createImportRouter(db));
