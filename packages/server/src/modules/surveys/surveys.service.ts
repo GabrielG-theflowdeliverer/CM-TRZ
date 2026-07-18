@@ -1,4 +1,10 @@
-import type { AssessmentType, SurveyCampaign, SurveyCampaignSummary, SurveyRecipient } from '@cmt/domain';
+import {
+  aggregateResponses,
+  type AssessmentType,
+  type SurveyCampaign,
+  type SurveyCampaignSummary,
+  type SurveyRecipient,
+} from '@cmt/domain';
 import { newId, newToken, nowIso, type Db } from '../../infra/db.js';
 import { HttpError, notFound } from '../../infra/http.js';
 import * as repo from './surveys.repo.js';
@@ -101,6 +107,40 @@ export function submitSurvey(db: Db, token: string, responses: Record<string, nu
     repo.markSubmitted(db, row.id, nowIso());
   })();
   return getSurveyByToken(db, token);
+}
+
+/** One respondent's submitted answers. */
+export interface SurveyIndividual {
+  personName: string;
+  responses: Record<string, number | null>;
+}
+
+/**
+ * The survey roll-up for an assessment: the aggregated responses (which
+ * supersede the practitioner's hand-entered ones for scoring), each item's
+ * answer distribution, and the individual submissions. Null when nobody has
+ * submitted yet — the assessment then falls back to its own responses.
+ */
+export interface AssessmentSurvey {
+  respondentCount: number;
+  responses: Record<string, number | null>;
+  distribution: Record<string, Record<number, number>>;
+  individuals: SurveyIndividual[];
+}
+
+export function getAssessmentSurvey(db: Db, assessmentId: string): AssessmentSurvey | null {
+  const submitted = repo.listSubmittedForAssessment(db, assessmentId);
+  if (submitted.length === 0) return null;
+  const agg = aggregateResponses(submitted.map((s) => s.responses));
+  const distribution = Object.fromEntries(
+    Object.entries(agg.byKey).map(([key, item]) => [key, item.distribution]),
+  );
+  return {
+    respondentCount: submitted.length,
+    responses: agg.mean,
+    distribution,
+    individuals: submitted.map((s) => ({ personName: s.personName, responses: s.responses })),
+  };
 }
 
 export function listCampaigns(db: Db, projectId: string): SurveyCampaignSummary[] {

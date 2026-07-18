@@ -3,10 +3,11 @@ import request from 'supertest';
 import { SPONSOR_COMPETENCY_ITEM_KEYS } from '@cmt/domain';
 import { createTestApp, type TestContext } from './harness.js';
 
-/** A complete, valid sponsor-competency response set (scores 1..5). */
-function fullResponses(): Record<string, number> {
-  return Object.fromEntries(SPONSOR_COMPETENCY_ITEM_KEYS.map((k) => [k, 4]));
+/** A complete, valid sponsor-competency response set at a uniform score (1..5). */
+function answers(value: number): Record<string, number> {
+  return Object.fromEntries(SPONSOR_COMPETENCY_ITEM_KEYS.map((k) => [k, value]));
 }
+const fullResponses = () => answers(4);
 
 async function campaignWithToken(pid: string, aid: string): Promise<string> {
   const { body: role } = await request(ctx.app)
@@ -178,5 +179,49 @@ describe('public survey capture (/api/survey/:token)', () => {
   it('404s an unknown token on both read and submit without leaking existence', async () => {
     await request(ctx.app).get('/api/survey/not-a-real-token').expect(404);
     await request(ctx.app).put('/api/survey/not-a-real-token').send(fullResponses()).expect(404);
+  });
+});
+
+describe('assessment survey roll-up', () => {
+  const KEY0 = SPONSOR_COMPETENCY_ITEM_KEYS[0]!;
+  const LEN = SPONSOR_COMPETENCY_ITEM_KEYS.length;
+
+  it("aggregates submissions into the assessment's score and supersedes hand-entered responses, keeping notes", async () => {
+    const roleA = await addRole(projectId, 'J. Smith');
+    const roleB = await addRole(projectId, 'A. Lee');
+
+    // Practitioner hand-enters responses and a note beforehand.
+    await request(ctx.app).patch(`/api/assessments/${assessmentId}`).send({ notes: 'keep me' }).expect(200);
+    await request(ctx.app).put(`/api/assessments/${assessmentId}/responses`).send(answers(1)).expect(200);
+
+    const { body: campaign } = await request(ctx.app)
+      .post(`/api/projects/${projectId}/surveys`)
+      .send({ assessmentId, roleIds: [roleA, roleB] })
+      .expect(201);
+    const tokenOf = (name: string) =>
+      campaign.recipients.find((r: { personName: string }) => r.personName === name).token;
+
+    await request(ctx.app).put(`/api/survey/${tokenOf('J. Smith')}`).send(answers(4)).expect(200);
+    await request(ctx.app).put(`/api/survey/${tokenOf('A. Lee')}`).send(answers(2)).expect(200);
+
+    const { body: a } = await request(ctx.app).get(`/api/assessments/${assessmentId}`).expect(200);
+
+    // Aggregate mean (3) replaces the hand-entered 1s...
+    expect(a.responses[KEY0]).toBe(3);
+    expect(a.computed.competency.total).toBe(3 * LEN);
+    // ...but the note is untouched.
+    expect(a.notes).toBe('keep me');
+    // Individual results + distribution are attached.
+    expect(a.survey.respondentCount).toBe(2);
+    const smith = a.survey.individuals.find((i: { personName: string }) => i.personName === 'J. Smith');
+    expect(smith.computed.competency.total).toBe(4 * LEN);
+    expect(a.survey.distribution[KEY0]).toEqual({ 2: 1, 4: 1 });
+  });
+
+  it('falls back to hand-entered responses when nobody has submitted yet', async () => {
+    await request(ctx.app).put(`/api/assessments/${assessmentId}/responses`).send(answers(5)).expect(200);
+    const { body: a } = await request(ctx.app).get(`/api/assessments/${assessmentId}`).expect(200);
+    expect(a.computed.competency.total).toBe(5 * LEN);
+    expect(a.survey).toBeUndefined();
   });
 });

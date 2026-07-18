@@ -100,6 +100,42 @@ export function markSubmitted(db: Db, recipientId: string, at: string): void {
   db.prepare('UPDATE survey_recipients SET submitted_at = ? WHERE id = ?').run(at, recipientId);
 }
 
+/** One submitted respondent's answers, across every campaign for an assessment. */
+export interface SubmittedRecipient {
+  recipientId: string;
+  personName: string;
+  responses: Record<string, number | null>;
+}
+
+export function listSubmittedForAssessment(db: Db, assessmentId: string): SubmittedRecipient[] {
+  const rows = db
+    .prepare(
+      `SELECT sr.id AS recipient_id, sr.person_name, resp.item_key, resp.value
+         FROM survey_recipients sr
+         JOIN survey_campaigns sc ON sc.id = sr.campaign_id
+         LEFT JOIN survey_responses resp ON resp.recipient_id = sr.id
+        WHERE sc.assessment_id = ? AND sr.submitted_at IS NOT NULL
+        ORDER BY sr.person_name, sr.rowid`,
+    )
+    .all(assessmentId) as Array<{
+    recipient_id: string;
+    person_name: string;
+    item_key: string | null;
+    value: number | null;
+  }>;
+
+  const byRecipient = new Map<string, SubmittedRecipient>();
+  for (const r of rows) {
+    let individual = byRecipient.get(r.recipient_id);
+    if (!individual) {
+      individual = { recipientId: r.recipient_id, personName: r.person_name, responses: {} };
+      byRecipient.set(r.recipient_id, individual);
+    }
+    if (r.item_key !== null) individual.responses[r.item_key] = r.value;
+  }
+  return [...byRecipient.values()];
+}
+
 export function recipientCounts(db: Db, campaignId: string): { total: number; submitted: number } {
   return db
     .prepare(
