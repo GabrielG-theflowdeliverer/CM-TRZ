@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryKey, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { AssessmentDto } from '../../lib/types';
+import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
 
 export function useAssessments(projectId: string, type?: string) {
   return useQuery({
@@ -20,11 +21,10 @@ export function useAssessment(assessmentId: string) {
 }
 
 export function useInvalidateAssessments(projectId: string) {
-  const queryClient = useQueryClient();
+  const invalidateCaches = useInvalidateProjectCaches();
   return (assessmentId?: string) => {
-    void queryClient.invalidateQueries({ queryKey: ['assessments', projectId] });
-    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    if (assessmentId) void queryClient.invalidateQueries({ queryKey: ['assessment', assessmentId] });
+    const extra: QueryKey[] = assessmentId ? [['assessment', assessmentId]] : [];
+    invalidateCaches(['assessments', projectId], ...extra);
   };
 }
 

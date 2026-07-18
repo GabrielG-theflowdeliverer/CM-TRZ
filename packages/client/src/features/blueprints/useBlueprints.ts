@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { BlueprintDto, BlueprintSnapshot } from '../../lib/types';
+import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
 
 export function useBlueprints(projectId: string) {
   return useQuery({
@@ -20,10 +21,10 @@ export function useBlueprint(projectId: string, blueprintId: string) {
 
 export function useBlueprintMutations(projectId: string, blueprintId?: string) {
   const queryClient = useQueryClient();
+  const invalidateCaches = useInvalidateProjectCaches();
   const refresh = (data?: BlueprintDto) => {
     if (data && blueprintId) queryClient.setQueryData(['blueprints', projectId, blueprintId], data);
-    void queryClient.invalidateQueries({ queryKey: ['blueprints', projectId] });
-    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    invalidateCaches(['blueprints', projectId]);
   };
   const create = useMutation({
     mutationFn: (input: { scopeKind: string; groupId?: string | null; name: string }) =>

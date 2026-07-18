@@ -1,15 +1,16 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { PROJECT_STATUSES } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { DashboardDto, Project } from '../../lib/types';
 import { BandChip, RiskBadge } from '../../ui/scores';
+import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
 
 const STATUS_FILTERS = ['Active', 'All', ...PROJECT_STATUSES.filter((s) => s !== 'Active')] as const;
 
 export function HomePage() {
-  const queryClient = useQueryClient();
+  const invalidateCaches = useInvalidateProjectCaches();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('Active');
@@ -24,10 +25,7 @@ export function HomePage() {
     queryFn: () => api.get<DashboardDto>('/api/dashboard'),
   });
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['projects'] });
-    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-  };
+  const invalidate = () => invalidateCaches(['projects']);
 
   const create = useMutation({
     mutationFn: (projectName: string) => api.post<Project>('/api/projects', { name: projectName }),

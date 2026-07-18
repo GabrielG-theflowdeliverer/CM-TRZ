@@ -5,11 +5,12 @@ import { api } from '../../lib/api';
 import type { PlanDto, RoleDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroups } from '../impact/useGroups';
-import { usePlans } from './PlansPage';
+import { usePlans } from './usePlans';
 import { useBlueprints } from '../blueprints/useBlueprints';
 import { useActivityMutations } from '../activities/useActivities';
 import { ActivityTable, type ActivityTableContext } from '../activities/ActivityTable';
 import { DateInput, Select, TextField } from '../../ui/controls';
+import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
 
 export function PlanDetailPage() {
   const { projectId, project } = useProject();
@@ -30,11 +31,10 @@ export function PlanDetailPage() {
   });
   const activityMutations = useActivityMutations(projectId);
 
+  const invalidateCaches = useInvalidateProjectCaches();
   const refresh = (data?: PlanDto) => {
     if (data) queryClient.setQueryData(['plans', projectId, planId], data);
-    void queryClient.invalidateQueries({ queryKey: ['plans', projectId] });
-    void queryClient.invalidateQueries({ queryKey: ['activities', projectId] });
-    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    invalidateCaches(['plans', projectId], ['activities', projectId]);
   };
   const update = useMutation({
     mutationFn: (fields: Record<string, unknown>) => api.patch<PlanDto>(`/api/plans/${planId}`, fields),

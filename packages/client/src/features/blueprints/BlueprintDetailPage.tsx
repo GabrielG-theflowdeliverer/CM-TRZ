@@ -8,7 +8,7 @@ import { useProject } from '../../app/ProjectLayout';
 import { useBlueprint, useBlueprintMutations, useSnapshots } from './useBlueprints';
 import { useBlueprints } from './useBlueprints';
 import { useGroups } from '../impact/useGroups';
-import { usePlans } from '../plans/PlansPage';
+import { usePlans } from '../plans/usePlans';
 import { useActivityMutations } from '../activities/useActivities';
 import { ActivityTable, type ActivityTableContext } from '../activities/ActivityTable';
 import { DateInput, Select } from '../../ui/controls';

@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { Activity } from '../../lib/types';
+import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
 
 export function useActivities(projectId: string) {
   return useQuery({
@@ -11,13 +12,9 @@ export function useActivities(projectId: string) {
 }
 
 export function useActivityMutations(projectId: string) {
-  const queryClient = useQueryClient();
-  const invalidate = () => {
-    for (const key of ['activities', 'plans', 'blueprints'] as const) {
-      void queryClient.invalidateQueries({ queryKey: [key, projectId] });
-    }
-    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-  };
+  const invalidateCaches = useInvalidateProjectCaches();
+  const invalidate = () =>
+    invalidateCaches(['activities', projectId], ['plans', projectId], ['blueprints', projectId]);
   const create = useMutation({
     mutationFn: (input: Record<string, unknown>) =>
       api.post<Activity>(`/api/projects/${projectId}/activities`, input),

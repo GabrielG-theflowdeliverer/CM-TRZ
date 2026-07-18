@@ -1,18 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EXTEND_PLAN_OPTIONS } from '@cmt/domain';
-import { api } from '../../lib/api';
 import type { PlanDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
-
-export function usePlans(projectId: string) {
-  return useQuery({
-    queryKey: ['plans', projectId],
-    queryFn: () => api.get<PlanDto[]>(`/api/projects/${projectId}/plans`),
-    enabled: projectId !== '',
-  });
-}
+import { usePlans, usePlanMutations } from './usePlans';
 
 function ProgressBar(props: { percent: number | null }) {
   if (props.percent == null) return <span className="text-xs text-slate-400">No activities</span>;
@@ -28,19 +19,10 @@ function ProgressBar(props: { percent: number | null }) {
 
 export function PlansPage() {
   const { projectId } = useProject();
-  const queryClient = useQueryClient();
   const { data: plans } = usePlans(projectId);
   const [extendName, setExtendName] = useState('');
 
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['plans', projectId] });
-  const create = useMutation({
-    mutationFn: (name: string) => api.post<PlanDto>(`/api/projects/${projectId}/plans`, { kind: 'extend', name }),
-    onSuccess: invalidate,
-  });
-  const remove = useMutation({
-    mutationFn: (id: string) => api.del(`/api/plans/${id}`),
-    onSuccess: invalidate,
-  });
+  const { create, remove } = usePlanMutations(projectId);
 
   const core = (plans ?? []).filter((p) => p.kind === 'core');
   const extend = (plans ?? []).filter((p) => p.kind === 'extend');

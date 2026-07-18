@@ -12,7 +12,7 @@ import { api } from '../../lib/api';
 import type { Activity, BlueprintDto, PlanDto, RoleDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroups } from '../impact/useGroups';
-import { usePlans } from '../plans/PlansPage';
+import { usePlans } from '../plans/usePlans';
 import { useBlueprints } from '../blueprints/useBlueprints';
 import { ActivityTable, roleLabel, type ActivityTableContext } from './ActivityTable';
 import { useActivities, useActivityMutations } from './useActivities';
