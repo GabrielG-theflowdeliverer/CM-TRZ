@@ -41,7 +41,22 @@ export interface AssessmentComputed {
   competency?: { total: number; interpretation: string | null };
 }
 
-export type AssessmentDto = Assessment & { computed: AssessmentComputed };
+/**
+ * Survey roll-up attached to an assessment once a campaign has collected
+ * submissions: the aggregated responses already drive `computed`; this block
+ * adds the respondent count, each item's answer distribution, and the
+ * individual submissions for display. Absent until someone submits.
+ */
+export interface AssessmentSurveyView {
+  respondentCount: number;
+  distribution: Record<string, Record<number, number>>;
+  individuals: Array<{ personName: string; computed: AssessmentComputed }>;
+}
+
+export type AssessmentDto = Assessment & {
+  computed: AssessmentComputed;
+  survey?: AssessmentSurveyView;
+};
 
 export type GroupDto = ImpactedGroup & {
   computed: {

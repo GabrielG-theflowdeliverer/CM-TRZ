@@ -7,6 +7,7 @@ import { PctEditor } from './PctEditor';
 import { RiskEditor } from './RiskEditor';
 import { CompetencyEditor } from './CompetencyEditor';
 import { AdkarEditor } from './AdkarEditor';
+import { AssessmentSurveyPanel } from '../surveys/AssessmentSurveyPanel';
 
 export function AssessmentRunPage() {
   const { projectId } = useProject();
@@ -65,6 +66,8 @@ export function AssessmentRunPage() {
         <label className="cmt-label">Assessment notes</label>
         <TextArea value={run.notes} onSave={(v) => update.mutate({ notes: v })} rows={3} />
       </div>
+
+      <AssessmentSurveyPanel run={run} projectId={projectId} />
     </div>
   );
 }
