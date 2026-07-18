@@ -44,13 +44,17 @@ export interface AssessmentComputed {
 /**
  * Survey roll-up attached to an assessment once a campaign has collected
  * submissions: the aggregated responses already drive `computed`; this block
- * adds the respondent count, each item's answer distribution, and the
- * individual submissions for display. Absent until someone submits.
+ * adds the respondent count and each respondent's own per-item answers (plus
+ * their computed score) for the side-by-side results matrix. Absent until
+ * someone submits.
  */
 export interface AssessmentSurveyView {
   respondentCount: number;
-  distribution: Record<string, Record<number, number>>;
-  individuals: Array<{ personName: string; computed: AssessmentComputed }>;
+  individuals: Array<{
+    personName: string;
+    responses: Record<string, number | null>;
+    computed: AssessmentComputed;
+  }>;
 }
 
 export type AssessmentDto = Assessment & {

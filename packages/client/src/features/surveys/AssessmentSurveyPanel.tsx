@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useState } from 'react';
 import { type AssessmentType, surveyStructure } from '@cmt/domain';
 import type { SurveyCampaign, SurveyCampaignSummary } from '@cmt/domain';
-import type { AssessmentComputed, AssessmentDto, AssessmentSurveyView } from '../../lib/types';
+import type { AssessmentDto, AssessmentSurveyView } from '../../lib/types';
 import { MultiSelect } from '../../ui/MultiSelect';
 import { useRoles } from '../roles/useRoles';
 import { useCampaign, useCampaigns, useCreateCampaign } from './useCampaigns';
@@ -131,73 +131,102 @@ function CopyLinkButton({ token }: { token: string }) {
   );
 }
 
-function Results({ survey, type }: { survey: AssessmentSurveyView; type: AssessmentType }) {
-  const labelByKey = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const group of surveyStructure(type).groups) {
-      for (const item of group.items) map.set(item.key, item.label);
+/**
+ * Distinct colour per respondent column so a person's answers and section
+ * totals are easy to track across the matrix and compare side by side. Static
+ * class strings (not interpolated) so Tailwind keeps them.
+ */
+const RESPONDENT_COLORS = [
+  { head: 'bg-indigo-100 text-indigo-900', cell: 'bg-indigo-50', total: 'bg-indigo-200 text-indigo-900' },
+  { head: 'bg-emerald-100 text-emerald-900', cell: 'bg-emerald-50', total: 'bg-emerald-200 text-emerald-900' },
+  { head: 'bg-amber-100 text-amber-900', cell: 'bg-amber-50', total: 'bg-amber-200 text-amber-900' },
+  { head: 'bg-rose-100 text-rose-900', cell: 'bg-rose-50', total: 'bg-rose-200 text-rose-900' },
+  { head: 'bg-sky-100 text-sky-900', cell: 'bg-sky-50', total: 'bg-sky-200 text-sky-900' },
+  { head: 'bg-violet-100 text-violet-900', cell: 'bg-violet-50', total: 'bg-violet-200 text-violet-900' },
+] as const;
+
+function sectionTotal(responses: Record<string, number | null>, items: { key: string }[]): number | null {
+  let sum = 0;
+  let answered = 0;
+  for (const item of items) {
+    const v = responses[item.key];
+    if (v != null) {
+      sum += v;
+      answered += 1;
     }
-    return map;
-  }, [type]);
+  }
+  return answered === 0 ? null : sum;
+}
+
+/**
+ * Side-by-side results matrix: one colour-coded column per respondent (name on
+ * top), each factor's answer in their column, and a per-section total row — so
+ * differences between people are easy to spot and discuss.
+ */
+function Results({ survey, type }: { survey: AssessmentSurveyView; type: AssessmentType }) {
+  const groups = surveyStructure(type).groups;
+  const people = survey.individuals;
+  const colorOf = (i: number) => RESPONDENT_COLORS[i % RESPONDENT_COLORS.length]!;
 
   return (
-    <div className="space-y-3 border-t border-slate-100 pt-3">
+    <div className="space-y-2 border-t border-slate-100 pt-3">
       <h4 className="text-sm font-semibold">
         Results — {survey.respondentCount} respondent{survey.respondentCount === 1 ? '' : 's'}
       </h4>
 
-      <div className="space-y-1">
-        {Object.entries(survey.distribution).map(([key, dist]) => (
-          <div key={key} className="flex items-start gap-2 text-xs">
-            <span className="w-56 shrink-0 truncate text-slate-600" title={labelByKey.get(key) ?? key}>
-              {labelByKey.get(key) ?? key}
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {Object.entries(dist)
-                .sort(([a], [b]) => Number(a) - Number(b))
-                .map(([value, count]) => (
-                  <span key={value} className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">
-                    {value}: {count}
-                  </span>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr>
+              <th className="cmt-th text-left">Factor</th>
+              {people.map((p, i) => (
+                <th key={i} className={`cmt-th w-16 text-center ${colorOf(i).head}`} title={p.personName}>
+                  {p.personName}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((group) => (
+              <Fragment key={group.title}>
+                <tr>
+                  <td
+                    colSpan={people.length + 1}
+                    className="bg-slate-50 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                  >
+                    {group.title}
+                  </td>
+                </tr>
+                {group.items.map((item) => (
+                  <tr key={item.key}>
+                    <td className="cmt-td text-slate-600" title={item.label}>
+                      {item.label}
+                    </td>
+                    {people.map((p, i) => (
+                      <td key={i} className={`cmt-td text-center tabular-nums ${colorOf(i).cell}`}>
+                        {p.responses[item.key] ?? '–'}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div>
-        <h5 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Individual submissions
-        </h5>
-        <ul className="space-y-0.5 text-sm">
-          {survey.individuals.map((ind, i) => (
-            <li key={i} className="flex justify-between gap-4">
-              <span>{ind.personName}</span>
-              <span className="text-slate-500">{computedSummary(type, ind.computed)}</span>
-            </li>
-          ))}
-        </ul>
+                <tr>
+                  <td className="cmt-td text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Section total
+                  </td>
+                  {people.map((p, i) => (
+                    <td
+                      key={i}
+                      className={`cmt-td text-center font-semibold tabular-nums ${colorOf(i).total}`}
+                    >
+                      {sectionTotal(p.responses, group.items) ?? '–'}
+                    </td>
+                  ))}
+                </tr>
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
-}
-
-/** One-line score summary of a single respondent's computed block, by type. */
-function computedSummary(type: AssessmentType, c: AssessmentComputed): string {
-  const n = (v: number | null | undefined) => (v == null ? '–' : String(v));
-  switch (type) {
-    case 'pct': {
-      const s = c.pct;
-      return s
-        ? `S ${n(s.success)} · L ${n(s.leadership)} · PM ${n(s.project_management)} · CM ${n(s.change_management)}`
-        : '—';
-    }
-    case 'risk':
-      return c.risk?.quadrant ?? '—';
-    case 'adkar':
-      return c.adkar?.barrierPoint ? `Barrier: ${c.adkar.barrierPoint}` : 'No barrier';
-    case 'sponsor_competency':
-    case 'manager_competency':
-      return c.competency ? `Total ${c.competency.total}` : '—';
-  }
 }

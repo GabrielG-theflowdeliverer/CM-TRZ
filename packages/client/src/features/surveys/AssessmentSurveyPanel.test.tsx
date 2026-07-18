@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { surveyStructure } from '@cmt/domain';
 import type { RoleDto } from '../../lib/types';
 import type { AssessmentDto, AssessmentSurveyView } from '../../lib/types';
 import { api } from '../../lib/api';
@@ -110,17 +111,19 @@ describe('AssessmentSurveyPanel', () => {
     expect(screen.getAllByRole('button', { name: /copy link/i })).toHaveLength(2);
   });
 
-  it('renders the results block (distribution + individuals) only when a survey roll-up is present', async () => {
+  it('renders a per-respondent results matrix (name columns + section totals) only when a roll-up is present', async () => {
+    const struct = surveyStructure('sponsor_competency');
+    const allItems = struct.groups.flatMap((g) => g.items);
+    const answerAll = (v: number) => Object.fromEntries(allItems.map((it) => [it.key, v]));
     const survey: AssessmentSurveyView = {
       respondentCount: 2,
-      distribution: { sponsor_competency_0_0: { 3: 1, 5: 1 } },
       individuals: [
-        { personName: 'Jane Doe', computed: { competency: { total: 40, interpretation: null } } },
-        { personName: 'Al Roe', computed: { competency: { total: 22, interpretation: null } } },
+        { personName: 'Jane Doe', responses: answerAll(4), computed: { competency: { total: 4 * allItems.length, interpretation: null } } },
+        { personName: 'Al Roe', responses: answerAll(2), computed: { competency: { total: 2 * allItems.length, interpretation: null } } },
       ],
     };
 
-    // Without a survey: no results.
+    // Without a survey: no results matrix.
     const { unmount } = renderWithClient(<AssessmentSurveyPanel run={run()} projectId="p1" />);
     mockGet();
     await screen.findByText('Choose role-holders…');
@@ -128,16 +131,26 @@ describe('AssessmentSurveyPanel', () => {
     unmount();
     vi.restoreAllMocks();
 
-    // With a survey: results appear.
+    // With a survey: the matrix appears.
     mockGet();
     renderWithClient(<AssessmentSurveyPanel run={run({ survey })} projectId="p1" />);
     expect(await screen.findByText(/2 respondents/)).toBeInTheDocument();
-    const individuals = screen.getByText('Individual submissions').closest('div')!;
-    expect(within(individuals).getByText('Jane Doe')).toBeInTheDocument();
-    expect(within(individuals).getByText('Total 40')).toBeInTheDocument();
-    expect(within(individuals).getByText('Total 22')).toBeInTheDocument();
-    // Distribution chips.
-    expect(screen.getByText('3: 1')).toBeInTheDocument();
-    expect(screen.getByText('5: 1')).toBeInTheDocument();
+
+    // Respondent names head their own columns.
+    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    expect(screen.getByText('Al Roe')).toBeInTheDocument();
+
+    // Each respondent's answers fill their column (one cell per item).
+    expect(screen.getAllByText('4').length).toBeGreaterThanOrEqual(allItems.length);
+    expect(screen.getAllByText('2').length).toBeGreaterThanOrEqual(allItems.length);
+
+    // One "Section total" row per section, with the summed values.
+    expect(screen.getAllByText('Section total')).toHaveLength(struct.groups.length);
+    const g0 = struct.groups[0]!;
+    expect(screen.getAllByText(String(4 * g0.items.length)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(String(2 * g0.items.length)).length).toBeGreaterThan(0);
+
+    // The old "value: count" distribution format is gone.
+    expect(screen.queryByText('2: 1')).not.toBeInTheDocument();
   });
 });

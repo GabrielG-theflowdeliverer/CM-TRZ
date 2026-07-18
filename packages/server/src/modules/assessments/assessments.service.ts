@@ -25,8 +25,11 @@ export interface AssessmentComputed {
 /** Survey roll-up attached when an assessment is fed by a survey campaign. */
 export interface AssessmentSurveyView {
   respondentCount: number;
-  distribution: Record<string, Record<number, number>>;
-  individuals: Array<{ personName: string; computed: AssessmentComputed }>;
+  individuals: Array<{
+    personName: string;
+    responses: Record<string, number | null>;
+    computed: AssessmentComputed;
+  }>;
 }
 
 export type AssessmentWithComputed = Assessment & {
@@ -66,7 +69,7 @@ export function withComputed(a: Assessment): AssessmentWithComputed {
  * Present an assessment for reading. When a survey campaign has collected
  * submissions for it, the aggregated survey responses supersede the
  * practitioner's hand-entered ones for scoring (notes and other fields are
- * untouched), and the individual results + distribution are attached. This is
+ * untouched), and each individual's own submission is attached. This is
  * the single point where survey roll-up is applied, so every consumer
  * (dashboard, exports, roadmap) sees the same value. Nothing is stored — the
  * hand-entered responses remain in the table and reappear if the campaign is
@@ -80,9 +83,9 @@ function present(db: Db, a: Assessment): AssessmentWithComputed {
     ...rolledUp,
     survey: {
       respondentCount: survey.respondentCount,
-      distribution: survey.distribution,
       individuals: survey.individuals.map((i) => ({
         personName: i.personName,
+        responses: i.responses,
         computed: withComputed({ ...a, responses: i.responses }).computed,
       })),
     },
