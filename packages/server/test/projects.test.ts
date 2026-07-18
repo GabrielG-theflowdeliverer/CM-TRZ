@@ -7,6 +7,13 @@ beforeEach(() => {
   ctx = createTestApp();
 });
 
+describe('health', () => {
+  it('reports ok from the liveness probe', async () => {
+    const { body } = await request(ctx.app).get('/api/health').expect(200);
+    expect(body).toEqual({ ok: true });
+  });
+});
+
 describe('projects', () => {
   it('creates a project and seeds core plans, roadmap and an overall blueprint', async () => {
     const created = await request(ctx.app)

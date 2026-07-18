@@ -24,6 +24,16 @@ export function createApp(db: Db): Express {
   const app = express();
   app.use(express.json({ limit: '20mb' }));
 
+  // Liveness probe for orchestrators / load balancers.
+  app.get('/api/health', (_req, res) => {
+    try {
+      db.pragma('quick_check');
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(503).json({ ok: false, error: err instanceof Error ? err.message : 'unhealthy' });
+    }
+  });
+
   // Project collection + project-scoped sub-resources
   app.use('/api/projects/:projectId/assessments', createProjectAssessmentsRouter(db));
   app.use('/api/projects/:projectId/groups', createProjectGroupsRouter(db));

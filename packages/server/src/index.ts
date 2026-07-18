@@ -23,6 +23,39 @@ if (fs.existsSync(clientDist)) {
   });
 }
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Change Management Tool API listening on http://localhost:${port}`);
+});
+// Bound how long a single request may hold a connection.
+server.requestTimeout = 30_000;
+server.headersTimeout = 35_000;
+
+// Graceful shutdown: stop accepting connections, then close the DB so WAL is
+// checkpointed cleanly. Force-exit if the drain hangs.
+let shuttingDown = false;
+function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received — shutting down`);
+  const force = setTimeout(() => process.exit(1), 10_000).unref();
+  server.close(() => {
+    try {
+      db.close();
+    } catch (err) {
+      console.error('Error closing database:', err);
+    }
+    clearTimeout(force);
+    process.exit(0);
+  });
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Never let an unhandled error take the process down silently.
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  shutdown('uncaughtException');
 });
