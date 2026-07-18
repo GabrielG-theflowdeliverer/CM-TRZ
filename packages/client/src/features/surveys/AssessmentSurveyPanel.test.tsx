@@ -153,4 +153,28 @@ describe('AssessmentSurveyPanel', () => {
     // The old "value: count" distribution format is gone.
     expect(screen.queryByText('2: 1')).not.toBeInTheDocument();
   });
+
+  it('shows no section total for an incomplete section (matches domain scoring)', async () => {
+    const struct = surveyStructure('sponsor_competency');
+    const firstGroup = struct.groups[0]!;
+    // Answer every item except the first group's last one -> that section is incomplete.
+    const allItems = struct.groups.flatMap((g) => g.items);
+    const responses: Record<string, number> = Object.fromEntries(allItems.map((it) => [it.key, 3]));
+    delete responses[firstGroup.items.at(-1)!.key];
+
+    const survey: AssessmentSurveyView = {
+      respondentCount: 1,
+      individuals: [{ personName: 'Jane Doe', responses, computed: {} }],
+    };
+
+    mockGet();
+    renderWithClient(<AssessmentSurveyPanel run={run({ survey })} projectId="p1" />);
+    await screen.findByText(/1 respondent/);
+
+    // Every section total is a number except the incomplete one, which shows "–".
+    const totalCells = screen.getAllByText('Section total');
+    expect(totalCells).toHaveLength(struct.groups.length);
+    // The incomplete first section renders a dash rather than a partial sum.
+    expect(screen.getAllByText('–').length).toBeGreaterThanOrEqual(2); // the blank cell + its section total
+  });
 });

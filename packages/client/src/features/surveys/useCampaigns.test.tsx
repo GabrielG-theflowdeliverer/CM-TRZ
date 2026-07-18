@@ -1,10 +1,43 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { SurveyCampaign } from '@cmt/domain';
+import type { SurveyCampaign, SurveyCampaignSummary } from '@cmt/domain';
 import { api } from '../../lib/api';
 import { renderWithClient } from '../../test/harness';
-import { useCreateCampaign } from './useCampaigns';
+import { hasPendingCampaign, hasPendingRecipient, useCreateCampaign } from './useCampaigns';
+
+const summary = (over: Partial<SurveyCampaignSummary> = {}): SurveyCampaignSummary => ({
+  id: 'c1',
+  assessmentId: 'a1',
+  createdAt: 'x',
+  recipientCount: 2,
+  submittedCount: 0,
+  ...over,
+});
+
+describe('polling predicates', () => {
+  it('hasPendingCampaign is true only while a campaign is awaiting responses', () => {
+    expect(hasPendingCampaign(undefined)).toBe(false);
+    expect(hasPendingCampaign([])).toBe(false);
+    expect(hasPendingCampaign([summary({ submittedCount: 1, recipientCount: 2 })])).toBe(true);
+    expect(hasPendingCampaign([summary({ submittedCount: 2, recipientCount: 2 })])).toBe(false);
+  });
+
+  it('hasPendingRecipient is true while any recipient has not submitted', () => {
+    expect(hasPendingRecipient(undefined)).toBe(false);
+    const base: SurveyCampaign = { id: 'c1', projectId: 'p1', assessmentId: 'a1', createdAt: 'x', recipients: [] };
+    const rec = (submittedAt: string | null) => ({
+      id: 'x',
+      roleId: 'r',
+      personName: 'P',
+      roleName: null,
+      token: 't',
+      submittedAt,
+    });
+    expect(hasPendingRecipient({ ...base, recipients: [rec('y'), rec(null)] })).toBe(true);
+    expect(hasPendingRecipient({ ...base, recipients: [rec('y')] })).toBe(false);
+  });
+});
 
 const campaign: SurveyCampaign = {
   id: 'c1',

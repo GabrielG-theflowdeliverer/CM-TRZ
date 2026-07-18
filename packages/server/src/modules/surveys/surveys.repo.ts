@@ -40,6 +40,12 @@ export function getCampaignRow(db: Db, id: string): CampaignRow | null {
   return (db.prepare('SELECT * FROM survey_campaigns WHERE id = ?').get(id) as CampaignRow | undefined) ?? null;
 }
 
+export function hasCampaignForAssessment(db: Db, assessmentId: string): boolean {
+  return (
+    db.prepare('SELECT 1 FROM survey_campaigns WHERE assessment_id = ? LIMIT 1').get(assessmentId) !== undefined
+  );
+}
+
 export function listCampaignRows(db: Db, projectId: string): CampaignRow[] {
   return db
     .prepare('SELECT * FROM survey_campaigns WHERE project_id = ? ORDER BY created_at DESC, rowid DESC')

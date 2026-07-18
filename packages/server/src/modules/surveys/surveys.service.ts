@@ -35,6 +35,13 @@ export function createCampaign(
   const assessment = assessmentsRepo.getAssessment(db, input.assessmentId);
   if (!assessment || assessment.projectId !== projectId) notFound('Assessment');
 
+  // One campaign per assessment: the roll-up aggregates every submission for
+  // the assessment, and the UI surfaces a single campaign, so a second would
+  // silently double-count and hide recipients.
+  if (repo.hasCampaignForAssessment(db, input.assessmentId)) {
+    throw new HttpError(409, 'A survey campaign already exists for this assessment');
+  }
+
   const roles = [...new Set(input.roleIds)].map((roleId) => {
     const role = getRoleRow(db, roleId);
     if (!role || role.project_id !== projectId) {

@@ -65,6 +65,19 @@ describe('survey campaigns', () => {
     expect(tokens.size).toBe(2);
   });
 
+  it('rejects a second campaign for the same assessment (one per assessment)', async () => {
+    const role = await addRole(projectId, 'J. Smith');
+    await request(ctx.app)
+      .post(`/api/projects/${projectId}/surveys`)
+      .send({ assessmentId, roleIds: [role] })
+      .expect(201);
+    const { body } = await request(ctx.app)
+      .post(`/api/projects/${projectId}/surveys`)
+      .send({ assessmentId, roleIds: [role] })
+      .expect(409);
+    expect(body.error).toMatch(/already exists/i);
+  });
+
   it('rejects a role with no named person (recipients must be identifiable)', async () => {
     const emptyRole = await addRole(projectId, null);
     const { body } = await request(ctx.app)

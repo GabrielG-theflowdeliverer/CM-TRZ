@@ -1,4 +1,5 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { type AssessmentType, surveyStructure } from '@cmt/domain';
 import type { SurveyCampaign, SurveyCampaignSummary } from '@cmt/domain';
 import type { AssessmentDto, AssessmentSurveyView } from '../../lib/types';
@@ -15,9 +16,20 @@ import { useCampaign, useCampaigns, useCreateCampaign } from './useCampaigns';
  * reports.
  */
 export function AssessmentSurveyPanel({ run, projectId }: { run: AssessmentDto; projectId: string }) {
+  const queryClient = useQueryClient();
   const { data: campaigns } = useCampaigns(projectId);
   const summary = campaigns?.find((c) => c.assessmentId === run.id);
   const { data: campaign } = useCampaign(summary?.id ?? '');
+
+  // The roll-up lives on the assessment (`run.survey`), which this panel
+  // receives as a prop. When polling shows the submitted count has moved,
+  // refresh the assessment so the results matrix and computed scores keep up.
+  const submittedCount = summary?.submittedCount;
+  useEffect(() => {
+    if (submittedCount !== undefined) {
+      void queryClient.invalidateQueries({ queryKey: ['assessment', run.id] });
+    }
+  }, [submittedCount, run.id, queryClient]);
 
   return (
     <section className="cmt-card space-y-4">
@@ -145,17 +157,20 @@ const RESPONDENT_COLORS = [
   { head: 'bg-violet-100 text-violet-900', cell: 'bg-violet-50', total: 'bg-violet-200 text-violet-900' },
 ] as const;
 
+/**
+ * Section total = sum of a respondent's answers for the section, but only once
+ * every item is answered. This matches the domain scoring rule (e.g. a PCT
+ * aspect scores null until all its factors are in), so the matrix never shows a
+ * partial sum that disagrees with the assessment's official score.
+ */
 function sectionTotal(responses: Record<string, number | null>, items: { key: string }[]): number | null {
   let sum = 0;
-  let answered = 0;
   for (const item of items) {
     const v = responses[item.key];
-    if (v != null) {
-      sum += v;
-      answered += 1;
-    }
+    if (v == null) return null; // incomplete section — no total yet
+    sum += v;
   }
-  return answered === 0 ? null : sum;
+  return items.length === 0 ? null : sum;
 }
 
 /**
