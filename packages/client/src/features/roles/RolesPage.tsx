@@ -4,6 +4,7 @@ import {
   ADKAR_SHORT,
   ROLE_COLUMN_HELP,
   ROLE_INFLUENCE_LEVELS,
+  ROLE_NAME_OPTIONS,
   ROLE_ROSTERS,
   ROLE_SUPPORT_LEVELS,
   ROSTER_HINTS,
@@ -16,7 +17,7 @@ import type { GroupDto, RoleDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroups } from '../impact/useGroups';
 import { BarrierBadge, ScorePicker, adkarCellColor } from '../../ui/scores';
-import { Select, TextArea, TextField } from '../../ui/controls';
+import { ComboField, Select, TextArea, TextField } from '../../ui/controls';
 
 function GroupMultiSelect(props: {
   groups: GroupDto[];
@@ -129,8 +130,11 @@ export function RolesPage() {
                   {rosterRoles.map((role) => (
                     <tr key={role.id}>
                       <td className="cmt-td">
-                        <TextField
+                        <ComboField
                           value={role.roleName}
+                          options={ROLE_NAME_OPTIONS}
+                          listId="role-name-options"
+                          placeholder="Role name…"
                           onSave={(v) => update.mutate({ id: role.id, fields: { roleName: v } })}
                         />
                       </td>

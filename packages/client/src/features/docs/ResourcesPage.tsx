@@ -2,10 +2,11 @@ import { RESOURCES_PROMPTS } from '@cmt/domain';
 import { useProject } from '../../app/ProjectLayout';
 import { TextArea } from '../../ui/controls';
 import { useDoc } from './useDoc';
+import { DocHeader } from './DocHeader';
 
 export function ResourcesPage() {
   const { projectId } = useProject();
-  const { doc, saveField } = useDoc(projectId, 'resources');
+  const { doc, saveField, complete, toggleComplete } = useDoc(projectId, 'resources');
   if (!doc) return null;
   const field = (key: string, label: string, rows = 2) => (
     <div key={key}>
@@ -15,10 +16,12 @@ export function ResourcesPage() {
   );
   return (
     <div className="max-w-3xl space-y-4">
-      <div>
-        <h2 className="text-xl font-bold">Resources & Governance</h2>
-        <p className="text-sm text-slate-500">Define Approach — Resources.</p>
-      </div>
+      <DocHeader
+        title="Resources & Governance"
+        subtitle="Define Approach — Resources."
+        complete={complete}
+        onToggle={toggleComplete}
+      />
       <div className="cmt-card space-y-3">
         <h3 className="font-semibold">{RESOURCES_PROMPTS.governanceTitle}</h3>
         {field('governance_description', RESOURCES_PROMPTS.governanceDescription, 3)}

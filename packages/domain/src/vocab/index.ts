@@ -38,6 +38,22 @@ export const PROJECT_TYPES = [
 export const PM_APPROACHES = ['Sequential', 'Iterative', 'Hybrid', 'Unsure'] as const;
 export type PmApproach = (typeof PM_APPROACHES)[number];
 
+export const PROJECT_STATUSES = ['Active', 'Completed', 'Paused / On Hold'] as const;
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
+/** Standard role names offered in the roster dropdowns (free text still allowed). */
+export const ROLE_NAME_OPTIONS = [
+  'Primary Sponsor',
+  'Sponsor Coalition Member',
+  'People Managers',
+  'Project Manager',
+  'Change Practitioner',
+  'Power Users',
+  'Key Influencers',
+  'Solution Developers',
+  'Change Agent Network',
+] as const;
+
 export const ROLE_SUPPORT_LEVELS = ['Supportive', 'Neutral', 'Opposed'] as const;
 export type RoleSupport = (typeof ROLE_SUPPORT_LEVELS)[number];
 

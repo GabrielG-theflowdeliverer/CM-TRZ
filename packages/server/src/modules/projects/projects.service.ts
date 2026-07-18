@@ -53,7 +53,7 @@ export function updateProject(
     name?: string;
     projectType?: string | null;
     pmApproach?: string | null;
-    archived?: boolean;
+    status?: string;
     watchGroupIds?: string[];
   },
 ): Project {

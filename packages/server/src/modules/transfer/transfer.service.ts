@@ -269,10 +269,12 @@ export function importProject(
     typeof oldId === 'string' ? (map.get(oldId) ?? null) : null;
 
   db.transaction(() => {
+    // watch_group_ids reference old group ids; blank now, remap after groups exist.
     insertRow(db, 'projects', {
       ...payload.project,
       id: newProjectId,
       name: options?.name ?? payload.project.name,
+      watch_group_ids: null,
       created_at: now,
       updated_at: now,
     });
@@ -392,6 +394,17 @@ export function importProject(
         group_id: remap(groupIds, ri.group_id),
       });
     }
+
+    // Remap the watch list now that group ids are known.
+    const oldWatch = (() => {
+      try {
+        return payload.project.watch_group_ids ? (JSON.parse(payload.project.watch_group_ids as string) as string[]) : [];
+      } catch {
+        return [];
+      }
+    })();
+    const newWatch = oldWatch.map((oldId) => remap(groupIds, oldId)).filter((x): x is string => !!x);
+    db.prepare('UPDATE projects SET watch_group_ids = ? WHERE id = ?').run(JSON.stringify(newWatch), newProjectId);
   })();
 
   return getProject(db, newProjectId);

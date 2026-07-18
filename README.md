@@ -1,11 +1,15 @@
 # Change Management Tool
 
-A web workspace for Prosci change management practitioners with **feature parity to Prosci Proxima Offline** (the Excel workbook), extended with:
+A web workspace for Prosci change management practitioners with **feature parity to Prosci Proxima** (both the Offline Excel workbook and the official web app), extended with:
 
-- **Multiple projects** and a unified **Portfolio Dashboard** (PCT bands, risk quadrant, barrier-point distribution, activity progress, overdue counts, next milestones).
-- **Repeatable assessments** — run PCT, Risk, ADKAR and Sponsor/Manager Competency assessments any number of times per project; PCT runs build the Organizational Performance trend automatically.
-- **Multiple ADKAR blueprints** per project (overall / per group / custom) with point-in-time **snapshots** for versioning.
-- Live cross-module data flow: Roadmap ADKAR milestone dates feed blueprint targets and the Tracking Calendar; impacted groups link to plan activities, roles and resistance rows.
+- **Multiple projects** with a unified **Portfolio Dashboard** and a **per-project dashboard** (PCT triangle, risk quadrant, aspects-impacted / degree-of-impact histograms, ADKAR barrier-point counts, Key Impacted Groups watch list).
+- **Unified activity model** — one interconnected "Blueprints & Plans" activity list, viewable from the ADKAR blueprint perspective, the plan perspective, or by group, role and status (an activity can belong to several plans, blueprints, groups and roles at once).
+- **Repeatable assessments** — run PCT, Risk (project- or group-scoped), ADKAR (overall change or per group) and Sponsor/Manager Competency assessments any number of times; PCT runs build the Organizational Performance trend and are auto-scheduled from the Roadmap's key dates.
+- **Structured CM Performance Reports** that auto-enumerate every blueprint and plan with a 5-level metric status.
+- **Multiple ADKAR blueprints** per project (overall / per group / custom) with point-in-time **snapshots**; group-scoped blueprints prefer that group's roadmap milestone dates.
+- **Group Overview hub** cross-linking each impacted group's roles, resistance, milestones and latest assessment results.
+- A Gantt-style **Tracking Calendar** timeline with methodology tracks (activities, PCT/ADKAR/risk runs, CM performance reports, milestones).
+- JSON export/import (lossless, with v1→v2 upgrade) and per-grid / combined **CSV export**; project status lifecycle (Active / Completed / Paused) and a one-click **demo project**.
 
 > **License note:** the Prosci assessment items and helper texts reproduced in `packages/domain/src/content` are covered by a Prosci Digital Product Single User License. This app is for the license holder's personal use and must not be published or distributed.
 

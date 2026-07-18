@@ -17,6 +17,7 @@ export const groupCreateSchema = z.object({
   numPeople: z.number().int().min(0).nullable().optional(),
   adoptionUsageDefinition: nullableText.optional(),
   uniqueConsiderations: nullableText.optional(),
+  tags: z.array(z.string().min(1).max(100)).max(20).optional(),
 });
 
 export const groupUpdateSchema = groupCreateSchema.partial().extend({
@@ -40,6 +41,7 @@ export interface ImpactedGroup {
   numPeople: number | null;
   adoptionUsageDefinition: string | null;
   uniqueConsiderations: string | null;
+  tags: string[];
   aspects: GroupAspect[];
   /** Latest ADKAR run scores for the group (managed via the assessments engine). */
   adkar: Record<string, number | null>;

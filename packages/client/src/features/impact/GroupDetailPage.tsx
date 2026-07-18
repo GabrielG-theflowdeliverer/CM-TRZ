@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
@@ -9,15 +9,150 @@ import {
   adkarItemKey,
 } from '@cmt/domain';
 import { api } from '../../lib/api';
-import type { AssessmentDto, GroupDto } from '../../lib/types';
+import type { AssessmentDto, GroupDto, ResistanceItem, RoleDto, Roadmap } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroupMutations } from './useGroups';
 import { useAssessments, useInvalidateAssessments } from '../assessments/useAssessments';
 import { BarrierBadge, HeatCell, RiskBadge, ScorePicker, adkarCellColor, impactCellColor } from '../../ui/scores';
 import { TextArea, TextField } from '../../ui/controls';
 
-const TABS = ['Change Impact', 'ADKAR Assessments', 'Risk Assessment'] as const;
+const TABS = ['Overview', 'Change Impact', 'ADKAR Assessments', 'Risk Assessment'] as const;
 type GroupTab = (typeof TABS)[number];
+
+/** Cross-module summary hub for a group (roles, resistance, milestones, results). */
+function OverviewTab(props: { projectId: string; group: GroupDto; onSaveTags: (tags: string[]) => void }) {
+  const { projectId, group } = props;
+  const { data: roles } = useQuery({
+    queryKey: ['roles', projectId],
+    queryFn: () => api.get<RoleDto[]>(`/api/projects/${projectId}/roles`),
+    enabled: projectId !== '',
+  });
+  const { data: resistance } = useQuery({
+    queryKey: ['resistance', projectId],
+    queryFn: () => api.get<ResistanceItem[]>(`/api/projects/${projectId}/resistance`),
+    enabled: projectId !== '',
+  });
+  const { data: roadmap } = useQuery({
+    queryKey: ['roadmap', projectId],
+    queryFn: () => api.get<Roadmap>(`/api/projects/${projectId}/roadmap`),
+    enabled: projectId !== '',
+  });
+
+  const linkedRoles = (roles ?? []).filter((r) => r.groupIds.includes(group.id));
+  const groupResistance = (resistance ?? []).filter((r) => r.groupId === group.id);
+  const groupMilestones = (roadmap?.adkarMilestones ?? []).filter((m) => m.groupId === group.id && m.date);
+
+  const card = (title: string, to: string, children: ReactNode) => (
+    <div className="cmt-card">
+      <div className="mb-1 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <Link to={to} className="text-[11px] font-medium text-indigo-600 hover:underline">
+          Go to page →
+        </Link>
+      </div>
+      {children}
+    </div>
+  );
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <div className="cmt-card">
+        <label className="cmt-label">Tags (comma-separated)</label>
+        <TextField
+          value={group.tags.join(', ')}
+          placeholder="e.g. Frontline, High priority"
+          onSave={(v) =>
+            props.onSaveTags(
+              (v ?? '')
+                .split(',')
+                .map((t) => t.trim())
+                .filter(Boolean),
+            )
+          }
+        />
+        <dl className="mt-3 space-y-1 text-sm">
+          <div className="flex justify-between">
+            <dt className="text-slate-500">Number in group</dt>
+            <dd>{group.numPeople ?? '—'}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-slate-500">Aspects impacted</dt>
+            <dd>{group.computed.aspectsImpacted}</dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-slate-500">Degree of impact</dt>
+            <dd>
+              <HeatCell value={group.computed.degreeOfImpact} colorFor={impactCellColor} />
+            </dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-slate-500">ADKAR barrier</dt>
+            <dd>
+              <BarrierBadge barrier={group.computed.barrierPoint} />
+            </dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-slate-500">Group risk</dt>
+            <dd>
+              <RiskBadge quadrant={group.computed.risk?.quadrant} />
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      {card(
+        'Roles addressing this group',
+        `/projects/${projectId}/roles`,
+        linkedRoles.length ? (
+          <ul className="space-y-0.5 text-sm">
+            {linkedRoles.map((r) => (
+              <li key={r.id} className="flex justify-between">
+                <span>{r.roleName ?? '(unnamed role)'}</span>
+                <span className="text-slate-400">{r.personName ?? ''}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-400">No roles linked to this group.</p>
+        ),
+      )}
+
+      {card(
+        'ADKAR milestone dates',
+        `/projects/${projectId}/roadmap`,
+        groupMilestones.length ? (
+          <ul className="space-y-0.5 text-sm">
+            {groupMilestones.map((m) => (
+              <li key={m.element} className="flex justify-between">
+                <span>{ADKAR_LABELS[m.element as keyof typeof ADKAR_LABELS] ?? m.element}</span>
+                <span className="text-slate-500">{m.date}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-400">No group-specific milestone dates set.</p>
+        ),
+      )}
+
+      {card(
+        'Anticipated resistance',
+        `/projects/${projectId}/resistance`,
+        groupResistance.length ? (
+          <ul className="space-y-1 text-sm">
+            {groupResistance.map((r) => (
+              <li key={r.id}>
+                <span className="font-medium">{r.anticipatedResistance ?? '(unspecified)'}</span>
+                {r.specialTactics && <span className="text-slate-500"> → {r.specialTactics}</span>}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-400">No resistance recorded for this group.</p>
+        ),
+      )}
+    </div>
+  );
+}
 
 /** Assessment runs list scoped to this group (ADKAR history / group risk). */
 function GroupRunsTab(props: {
@@ -128,7 +263,7 @@ export function GroupDetailPage() {
   const { data: allAdkar } = useAssessments(projectId, 'adkar');
   const { data: allRisk } = useAssessments(projectId, 'risk');
   const [showGuide, setShowGuide] = useState(false);
-  const [tab, setTab] = useState<GroupTab>('Change Impact');
+  const [tab, setTab] = useState<GroupTab>('Overview');
 
   if (!group) return null;
   const aspectByKey = new Map(group.aspects.map((a) => [a.aspectKey, a]));
@@ -164,6 +299,13 @@ export function GroupDetailPage() {
         ))}
       </div>
 
+      {tab === 'Overview' && (
+        <OverviewTab
+          projectId={projectId}
+          group={group}
+          onSaveTags={(tags) => update.mutate({ id: group.id, fields: { tags } })}
+        />
+      )}
       {tab === 'ADKAR Assessments' && (
         <GroupRunsTab projectId={projectId} groupId={group.id} type="adkar" runs={groupAdkarRuns} />
       )}

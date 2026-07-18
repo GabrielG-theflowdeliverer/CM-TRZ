@@ -2,6 +2,7 @@ import { DEFINE_SUCCESS_PROMPTS } from '@cmt/domain';
 import { useProject } from '../../app/ProjectLayout';
 import { TextArea } from '../../ui/controls';
 import { useDoc } from './useDoc';
+import { DocHeader } from './DocHeader';
 
 const FOUR_PS: Array<{ field: string; title: string; prompt: string }> = [
   { field: 'project', title: 'Project', prompt: DEFINE_SUCCESS_PROMPTS.project },
@@ -12,14 +13,16 @@ const FOUR_PS: Array<{ field: string; title: string; prompt: string }> = [
 
 export function DefineSuccessPage() {
   const { projectId } = useProject();
-  const { doc, saveField } = useDoc(projectId, 'define_success');
+  const { doc, saveField, complete, toggleComplete } = useDoc(projectId, 'define_success');
   if (!doc) return null;
   return (
     <div className="max-w-3xl space-y-4">
-      <div>
-        <h2 className="text-xl font-bold">4 P’s to Define Success</h2>
-        <p className="text-sm text-slate-500">Phase 1 — Prepare Approach.</p>
-      </div>
+      <DocHeader
+        title="4 P’s to Define Success"
+        subtitle="Phase 1 — Prepare Approach."
+        complete={complete}
+        onToggle={toggleComplete}
+      />
       {FOUR_PS.map((p) => (
         <div key={p.field} className="cmt-card">
           <h3 className="font-semibold">{p.title}</h3>

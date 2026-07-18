@@ -5,8 +5,9 @@ import { nullableText } from './common.js';
 export const DOC_KEYS = ['define_success', 'why_cm', 'resources'] as const;
 export type DocKey = (typeof DOC_KEYS)[number];
 
+/** `_status` is the page-completion marker ("Mark Complete" workflow). */
 export const DOC_FIELDS: Record<DocKey, readonly string[]> = {
-  define_success: ['project', 'purpose', 'particulars', 'people', 'adoption_percentage'],
+  define_success: ['project', 'purpose', 'particulars', 'people', 'adoption_percentage', '_status'],
   why_cm: [
     'speed_of_adoption',
     'ultimate_utilization',
@@ -23,6 +24,7 @@ export const DOC_FIELDS: Record<DocKey, readonly string[]> = {
     'risk_organization',
     'cost_results',
     'risk_results',
+    '_status',
   ],
   resources: [
     'governance_description',
@@ -36,6 +38,7 @@ export const DOC_FIELDS: Record<DocKey, readonly string[]> = {
     'budget_source',
     'budget_sufficiency',
     'notes',
+    '_status',
   ],
 };
 

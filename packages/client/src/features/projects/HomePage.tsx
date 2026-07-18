@@ -1,15 +1,18 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { PROJECT_STATUSES } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { DashboardDto, Project } from '../../lib/types';
 import { BandChip, RiskBadge } from '../../ui/scores';
+
+const STATUS_FILTERS = ['Active', 'All', ...PROJECT_STATUSES.filter((s) => s !== 'Active')] as const;
 
 export function HomePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [name, setName] = useState('');
-  const [showArchived, setShowArchived] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('Active');
   const fileInput = useRef<HTMLInputElement>(null);
 
   const { data: projects } = useQuery({
@@ -30,15 +33,23 @@ export function HomePage() {
     mutationFn: (projectName: string) => api.post<Project>('/api/projects', { name: projectName }),
     onSuccess: (project) => {
       invalidate();
-      navigate(`/projects/${project.id}/settings`);
+      navigate(`/projects/${project.id}/dashboard`);
+    },
+  });
+  const generateDemo = useMutation({
+    mutationFn: () => api.post<Project>('/api/projects/demo'),
+    onSuccess: (project) => {
+      invalidate();
+      navigate(`/projects/${project.id}/dashboard`);
     },
   });
   const duplicate = useMutation({
     mutationFn: (id: string) => api.post<Project>(`/api/projects/${id}/duplicate`),
     onSuccess: invalidate,
   });
-  const archive = useMutation({
-    mutationFn: (p: Project) => api.patch<Project>(`/api/projects/${p.id}`, { archived: !p.archived }),
+  const setStatus = useMutation({
+    mutationFn: (input: { id: string; status: string }) =>
+      api.patch<Project>(`/api/projects/${input.id}`, { status: input.status }),
     onSuccess: invalidate,
   });
   const remove = useMutation({
@@ -50,7 +61,7 @@ export function HomePage() {
     onSuccess: invalidate,
   });
 
-  const visible = (projects ?? []).filter((p) => showArchived || !p.archived);
+  const visible = (projects ?? []).filter((p) => statusFilter === 'All' || p.status === statusFilter);
   const healthByProject = new Map((dashboard?.projects ?? []).map((h) => [h.projectId, h]));
 
   return (
@@ -85,6 +96,14 @@ export function HomePage() {
           <button type="submit" className="cmt-btn" disabled={!name.trim() || create.isPending}>
             Create project
           </button>
+          <button
+            type="button"
+            className="cmt-btn-secondary"
+            onClick={() => generateDemo.mutate()}
+            disabled={generateDemo.isPending}
+          >
+            Generate demo
+          </button>
           <button type="button" className="cmt-btn-secondary" onClick={() => fileInput.current?.click()}>
             Import JSON
           </button>
@@ -106,10 +125,19 @@ export function HomePage() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
           Projects ({visible.length})
         </h2>
-        <label className="flex items-center gap-1.5 text-xs text-slate-500">
-          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-          Show archived
-        </label>
+        <div className="flex items-center gap-1.5">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f}
+              className={`rounded px-2 py-1 text-xs font-medium ${
+                statusFilter === f ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-100'
+              }`}
+              onClick={() => setStatusFilter(f)}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
       </div>
 
       {visible.length === 0 && (
@@ -122,18 +150,18 @@ export function HomePage() {
         {visible.map((project) => {
           const health = healthByProject.get(project.id);
           return (
-            <li key={project.id} className={`cmt-card ${project.archived ? 'opacity-60' : ''}`}>
+            <li key={project.id} className={`cmt-card ${project.status !== 'Active' ? 'opacity-70' : ''}`}>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <Link
-                    to={`/projects/${project.id}/settings`}
+                    to={`/projects/${project.id}/dashboard`}
                     className="text-base font-semibold text-indigo-700 hover:underline"
                   >
                     {project.name}
                   </Link>
-                  {project.archived && (
+                  {project.status !== 'Active' && (
                     <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
-                      Archived
+                      {project.status}
                     </span>
                   )}
                   <p className="text-xs text-slate-500">
@@ -149,7 +177,18 @@ export function HomePage() {
                     </div>
                   )}
                 </div>
-                <div className="flex shrink-0 gap-1.5">
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <select
+                    className="cmt-input w-32 py-1 text-xs"
+                    value={project.status}
+                    onChange={(e) => setStatus.mutate({ id: project.id, status: e.target.value })}
+                  >
+                    {PROJECT_STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     className="cmt-btn-secondary"
                     onClick={() => duplicate.mutate(project.id)}
@@ -160,9 +199,6 @@ export function HomePage() {
                   <a className="cmt-btn-secondary" href={`/api/projects/${project.id}/export`} download>
                     Export
                   </a>
-                  <button className="cmt-btn-secondary" onClick={() => archive.mutate(project)}>
-                    {project.archived ? 'Unarchive' : 'Archive'}
-                  </button>
                   <button
                     className="cmt-btn-danger"
                     onClick={() => {

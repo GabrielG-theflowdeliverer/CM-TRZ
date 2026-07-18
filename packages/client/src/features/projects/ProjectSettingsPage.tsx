@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { PM_APPROACHES, PROJECT_TYPES } from '@cmt/domain';
+import { PM_APPROACHES, PROJECT_STATUSES, PROJECT_TYPES } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { Project } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
@@ -9,7 +9,7 @@ export function ProjectSettingsPage() {
   const { projectId, project } = useProject();
   const queryClient = useQueryClient();
   const update = useMutation({
-    mutationFn: (fields: Partial<Pick<Project, 'name' | 'projectType' | 'pmApproach'>>) =>
+    mutationFn: (fields: Partial<Pick<Project, 'name' | 'projectType' | 'pmApproach' | 'status'>>) =>
       api.patch<Project>(`/api/projects/${projectId}`, fields),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['project', projectId] });
@@ -42,8 +42,42 @@ export function ProjectSettingsPage() {
             value={project.pmApproach}
             options={PM_APPROACHES}
             placeholder="Select an approach…"
-            onSave={(v) => update.mutate({ pmApproach: v as Project['pmApproach'] })}
+            onSave={(v) => update.mutate({ pmApproach: v })}
           />
+        </div>
+        <div>
+          <label className="cmt-label">Project Status</label>
+          <Select
+            value={project.status}
+            options={PROJECT_STATUSES}
+            onSave={(v) => v && update.mutate({ status: v })}
+          />
+        </div>
+      </div>
+
+      <div className="cmt-card mt-4">
+        <h3 className="mb-2 font-semibold">Export</h3>
+        <p className="mb-3 text-xs text-slate-500">
+          Download the full project as JSON (re-importable) or individual grids as CSV for spreadsheets and project
+          planning tools.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <a className="cmt-btn-secondary" href={`/api/projects/${projectId}/export`} download>
+            Export JSON
+          </a>
+          <a className="cmt-btn-secondary" href={`/api/projects/${projectId}/export/csv`} download>
+            All CSVs
+          </a>
+          {(['groups', 'roles', 'activities', 'assessments'] as const).map((dataset) => (
+            <a
+              key={dataset}
+              className="cmt-btn-secondary"
+              href={`/api/projects/${projectId}/export/csv/${dataset}`}
+              download
+            >
+              {dataset[0]!.toUpperCase() + dataset.slice(1)} CSV
+            </a>
+          ))}
         </div>
       </div>
     </div>

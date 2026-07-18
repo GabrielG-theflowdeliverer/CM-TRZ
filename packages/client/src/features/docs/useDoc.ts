@@ -14,5 +14,10 @@ export function useDoc(projectId: string, docKey: string) {
     mutationFn: (fields: DocValues) => api.put<DocValues>(`/api/projects/${projectId}/docs/${docKey}`, fields),
     onSuccess: (data) => queryClient.setQueryData(['doc', projectId, docKey], data),
   });
-  return { doc: query.data, saveField: (field: string, value: string | null) => save.mutate({ [field]: value }) };
+  return {
+    doc: query.data,
+    saveField: (field: string, value: string | null) => save.mutate({ [field]: value }),
+    complete: query.data?._status === 'Completed',
+    toggleComplete: () => save.mutate({ _status: query.data?._status === 'Completed' ? null : 'Completed' }),
+  };
 }

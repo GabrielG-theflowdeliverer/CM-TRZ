@@ -228,10 +228,22 @@ describe('dashboard', () => {
     expect(project.watchGroupIds).toEqual([d.groups[0].id]);
   });
 
-  it('excludes archived projects', async () => {
-    const projectId = await buildRichProject('Archived soon');
-    await request(ctx.app).patch(`/api/projects/${projectId}`).send({ archived: true }).expect(200);
+  it('excludes non-active projects from the portfolio dashboard', async () => {
+    const projectId = await buildRichProject('Paused soon');
+    await request(ctx.app).patch(`/api/projects/${projectId}`).send({ status: 'Paused / On Hold' }).expect(200);
     const { body } = await request(ctx.app).get('/api/dashboard').expect(200);
     expect(body.summary.totalProjects).toBe(0);
+  });
+
+  it('exports per-dataset and combined CSV', async () => {
+    const projectId = await buildRichProject('CSV project');
+    const groupsCsv = await request(ctx.app).get(`/api/projects/${projectId}/export/csv/groups`).expect(200);
+    expect(groupsCsv.headers['content-type']).toContain('text/csv');
+    expect(groupsCsv.text).toContain('Impacted Group');
+    expect(groupsCsv.text).toContain('Client Services');
+    const allCsv = await request(ctx.app).get(`/api/projects/${projectId}/export/csv`).expect(200);
+    expect(allCsv.text).toContain('# GROUPS');
+    expect(allCsv.text).toContain('# ASSESSMENTS');
+    await request(ctx.app).get(`/api/projects/${projectId}/export/csv/bogus`).expect(404);
   });
 });

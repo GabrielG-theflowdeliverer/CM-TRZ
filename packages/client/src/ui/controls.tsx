@@ -76,6 +76,34 @@ export function Select(props: {
   );
 }
 
+/** Free-text field with a datalist of suggested values (type or pick). */
+export function ComboField(props: {
+  value: string | null | undefined;
+  onSave: (value: string | null) => void;
+  options: readonly string[];
+  listId: string;
+  placeholder?: string;
+}) {
+  const field = useAutosaveField(props.value, props.onSave);
+  return (
+    <>
+      <input
+        className="cmt-input"
+        list={props.listId}
+        value={field.value}
+        placeholder={props.placeholder}
+        onChange={(e) => field.onChange(e.target.value)}
+        onBlur={field.onBlur}
+      />
+      <datalist id={props.listId}>
+        {props.options.map((o) => (
+          <option key={o} value={o} />
+        ))}
+      </datalist>
+    </>
+  );
+}
+
 export function NumberField(props: {
   value: number | null | undefined;
   onSave: (value: number | null) => void;

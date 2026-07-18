@@ -94,7 +94,7 @@ export function getProjectDashboard(db: Db, projectId: string): ProjectDashboard
 
 export function getDashboard(db: Db): DashboardPayload {
   const today = todayIso();
-  const allProjects = projects.listProjects(db).filter((p) => !p.archived);
+  const allProjects = projects.listProjects(db).filter((p) => p.status === 'Active');
   const healths: ProjectHealth[] = [];
   const allCheckDates: Array<{ date: string | null }> = [];
 

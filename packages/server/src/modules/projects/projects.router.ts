@@ -4,6 +4,7 @@ import type { Db } from '../../infra/db.js';
 import { parseBody } from '../../infra/http.js';
 import * as service from './projects.service.js';
 import { duplicateProject } from '../transfer/transfer.service.js';
+import { generateDemoProject } from './demo.service.js';
 
 export function createProjectsRouter(db: Db): Router {
   const router = Router();
@@ -15,6 +16,10 @@ export function createProjectsRouter(db: Db): Router {
   router.post('/', (req, res) => {
     const input = parseBody(projectCreateSchema, req.body);
     res.status(201).json(service.createProject(db, input));
+  });
+
+  router.post('/demo', (_req, res) => {
+    res.status(201).json(generateDemoProject(db));
   });
 
   router.get('/:id', (req, res) => {

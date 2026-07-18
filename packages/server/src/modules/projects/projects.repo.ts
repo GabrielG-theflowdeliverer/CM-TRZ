@@ -6,7 +6,7 @@ interface ProjectRow {
   name: string;
   project_type: string | null;
   pm_approach: string | null;
-  archived: number;
+  status: string;
   watch_group_ids: string | null;
   created_at: string;
   updated_at: string;
@@ -24,7 +24,7 @@ function toProject(row: ProjectRow): Project {
     name: row.name,
     projectType: row.project_type,
     pmApproach: row.pm_approach,
-    archived: row.archived === 1,
+    status: row.status,
     watchGroupIds,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -46,8 +46,8 @@ export function insertProject(
   p: { id: string; name: string; projectType: string | null; pmApproach: string | null; createdAt: string },
 ): void {
   db.prepare(
-    `INSERT INTO projects (id, name, project_type, pm_approach, archived, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 0, ?, ?)`,
+    `INSERT INTO projects (id, name, project_type, pm_approach, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'Active', ?, ?)`,
   ).run(p.id, p.name, p.projectType, p.pmApproach, p.createdAt, p.createdAt);
 }
 
@@ -58,7 +58,7 @@ export function updateProject(
     name?: string;
     projectType?: string | null;
     pmApproach?: string | null;
-    archived?: boolean;
+    status?: string;
     watchGroupIds?: string[];
   },
   updatedAt: string,
@@ -66,12 +66,12 @@ export function updateProject(
   const current = getProject(db, id);
   if (!current) return false;
   db.prepare(
-    `UPDATE projects SET name = ?, project_type = ?, pm_approach = ?, archived = ?, watch_group_ids = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE projects SET name = ?, project_type = ?, pm_approach = ?, status = ?, watch_group_ids = ?, updated_at = ? WHERE id = ?`,
   ).run(
     fields.name ?? current.name,
     fields.projectType !== undefined ? fields.projectType : current.projectType,
     fields.pmApproach !== undefined ? fields.pmApproach : current.pmApproach,
-    (fields.archived ?? current.archived) ? 1 : 0,
+    fields.status ?? current.status,
     JSON.stringify(fields.watchGroupIds ?? current.watchGroupIds),
     updatedAt,
     id,

@@ -41,6 +41,7 @@ function assembleGroup(db: Db, row: repo.GroupRow): GroupWithComputed {
     numPeople: row.num_people,
     adoptionUsageDefinition: row.adoption_usage_definition,
     uniqueConsiderations: row.unique_considerations,
+    tags: repo.parseTags(row.tags),
     aspects: fullAspects,
     adkar: Object.fromEntries(Object.entries(adkarScores)),
     adkarAssessmentId: latestAdkar?.id ?? null,
@@ -73,6 +74,7 @@ export function createGroup(
     numPeople?: number | null;
     adoptionUsageDefinition?: string | null;
     uniqueConsiderations?: string | null;
+    tags?: string[];
   },
 ): GroupWithComputed {
   getProject(db, projectId);
@@ -85,6 +87,7 @@ export function createGroup(
     numPeople: input.numPeople ?? null,
     adoptionUsageDefinition: input.adoptionUsageDefinition ?? null,
     uniqueConsiderations: input.uniqueConsiderations ?? null,
+    tags: input.tags ?? [],
   });
   return getGroup(db, id);
 }

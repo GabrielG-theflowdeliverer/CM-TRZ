@@ -37,16 +37,33 @@ describe('projects', () => {
     await request(ctx.app).post('/api/projects').send({ name: 'X', pmApproach: 'Agile' }).expect(400);
   });
 
-  it('updates, archives and deletes', async () => {
+  it('updates status and deletes', async () => {
     const { body: project } = await request(ctx.app).post('/api/projects').send({ name: 'A' }).expect(201);
+    expect(project.status).toBe('Active');
     const updated = await request(ctx.app)
       .patch(`/api/projects/${project.id}`)
-      .send({ name: 'B', archived: true })
+      .send({ name: 'B', status: 'Paused / On Hold' })
       .expect(200);
     expect(updated.body.name).toBe('B');
-    expect(updated.body.archived).toBe(true);
+    expect(updated.body.status).toBe('Paused / On Hold');
+    await request(ctx.app).patch(`/api/projects/${project.id}`).send({ status: 'Bogus' }).expect(400);
     await request(ctx.app).delete(`/api/projects/${project.id}`).expect(204);
     await request(ctx.app).get(`/api/projects/${project.id}`).expect(404);
+  });
+
+  it('generates a fully-populated demo project', async () => {
+    const { body: demo } = await request(ctx.app).post('/api/projects/demo').expect(201);
+    expect(demo.name).toContain('Demo');
+    const { body: groups } = await request(ctx.app).get(`/api/projects/${demo.id}/groups`).expect(200);
+    expect(groups.length).toBeGreaterThanOrEqual(2);
+    const { body: dash } = await request(ctx.app).get(`/api/projects/${demo.id}/dashboard`).expect(200);
+    expect(dash.pct?.scores.success).toBe(30);
+    expect(dash.risk?.quadrant).toBe('High');
+    expect(dash.project.watchGroupIds.length).toBeGreaterThan(0);
+    const { body: activities } = await request(ctx.app).get(`/api/projects/${demo.id}/activities`).expect(200);
+    // The cross-plan activity appears once and links two plans.
+    const crossPlan = activities.find((a: { name: string }) => a.name === 'Launch email + FAQ');
+    expect(crossPlan.planIds.length).toBe(2);
   });
 
   it('404s on unknown ids', async () => {

@@ -9,6 +9,15 @@ export interface GroupRow {
   num_people: number | null;
   adoption_usage_definition: string | null;
   unique_considerations: string | null;
+  tags: string | null;
+}
+
+export function parseTags(raw: string | null): string[] {
+  try {
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 export function listGroupRows(db: Db, projectId: string): GroupRow[] {
@@ -38,12 +47,22 @@ export function insertGroup(
     numPeople: number | null;
     adoptionUsageDefinition: string | null;
     uniqueConsiderations: string | null;
+    tags: string[];
   },
 ): void {
   db.prepare(
-    `INSERT INTO impacted_groups (id, project_id, position, name, num_people, adoption_usage_definition, unique_considerations)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).run(g.id, g.projectId, g.position, g.name, g.numPeople, g.adoptionUsageDefinition, g.uniqueConsiderations);
+    `INSERT INTO impacted_groups (id, project_id, position, name, num_people, adoption_usage_definition, unique_considerations, tags)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    g.id,
+    g.projectId,
+    g.position,
+    g.name,
+    g.numPeople,
+    g.adoptionUsageDefinition,
+    g.uniqueConsiderations,
+    JSON.stringify(g.tags),
+  );
 }
 
 export function updateGroup(
@@ -54,18 +73,20 @@ export function updateGroup(
     numPeople?: number | null;
     adoptionUsageDefinition?: string | null;
     uniqueConsiderations?: string | null;
+    tags?: string[];
     position?: number;
   },
 ): boolean {
   const current = getGroupRow(db, id);
   if (!current) return false;
   db.prepare(
-    `UPDATE impacted_groups SET name = ?, num_people = ?, adoption_usage_definition = ?, unique_considerations = ?, position = ? WHERE id = ?`,
+    `UPDATE impacted_groups SET name = ?, num_people = ?, adoption_usage_definition = ?, unique_considerations = ?, tags = ?, position = ? WHERE id = ?`,
   ).run(
     fields.name ?? current.name,
     fields.numPeople !== undefined ? fields.numPeople : current.num_people,
     fields.adoptionUsageDefinition !== undefined ? fields.adoptionUsageDefinition : current.adoption_usage_definition,
     fields.uniqueConsiderations !== undefined ? fields.uniqueConsiderations : current.unique_considerations,
+    fields.tags !== undefined ? JSON.stringify(fields.tags) : current.tags,
     fields.position ?? current.position,
     id,
   );

@@ -2,6 +2,7 @@ import { WHY_CM_PROMPTS } from '@cmt/domain';
 import { useProject } from '../../app/ProjectLayout';
 import { TextArea } from '../../ui/controls';
 import { useDoc } from './useDoc';
+import { DocHeader } from './DocHeader';
 
 const COST_RISK_FIELDS = [
   { cost: 'cost_individuals', risk: 'risk_individuals', label: WHY_CM_PROMPTS.costRiskRows[0]! },
@@ -12,14 +13,11 @@ const COST_RISK_FIELDS = [
 
 export function WhyCmPage() {
   const { projectId } = useProject();
-  const { doc, saveField } = useDoc(projectId, 'why_cm');
+  const { doc, saveField, complete, toggleComplete } = useDoc(projectId, 'why_cm');
   if (!doc) return null;
   return (
     <div className="max-w-3xl space-y-4">
-      <div>
-        <h2 className="text-xl font-bold">The Value of CM</h2>
-        <p className="text-sm text-slate-500">{WHY_CM_PROMPTS.title}</p>
-      </div>
+      <DocHeader title="The Value of CM" subtitle={WHY_CM_PROMPTS.title} complete={complete} onToggle={toggleComplete} />
 
       <div className="cmt-card space-y-3">
         <h3 className="font-semibold">{WHY_CM_PROMPTS.humanFactorsTitle}</h3>
