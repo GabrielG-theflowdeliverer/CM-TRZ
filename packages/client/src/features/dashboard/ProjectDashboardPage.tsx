@@ -12,7 +12,15 @@ import { MultiSelect } from '../../ui/MultiSelect';
 export interface ProjectDashboardDto {
   project: Project;
   pct: { label: string | null; date: string | null; scores: PctScores } | null;
-  risk: { label: string | null; date: string | null; cc: number | null; oa: number | null; quadrant: string | null } | null;
+  risk: {
+    label: string | null;
+    date: string | null;
+    subject: string;
+    cc: number | null;
+    oa: number | null;
+    quadrant: string | null;
+  } | null;
+  groupRisks: Array<{ groupId: string; groupName: string; cc: number | null; oa: number | null; quadrant: string | null }>;
   aspectsImpactedHistogram: number[];
   degreeOfImpactHistogram: number[];
   barrierCounts: Record<string, number>;
@@ -112,6 +120,9 @@ export function ProjectDashboardPage() {
           </div>
           {d.risk && d.risk.cc != null && d.risk.oa != null ? (
             <div className="flex flex-col items-center gap-1">
+              <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
+                {d.risk.subject}
+              </span>
               <QuadrantChart points={[{ cc: d.risk.cc, oa: d.risk.oa, current: true }]} />
               <p className="text-xs text-slate-400">
                 CC: {d.risk.cc} · OA: {d.risk.oa}
@@ -122,6 +133,23 @@ export function ProjectDashboardPage() {
             <p className="py-10 text-center text-sm text-slate-400">
               Complete all 28 factors to plot the risk quadrant.
             </p>
+          )}
+          {d.groupRisks.length > 0 && (
+            <div className="mt-3 border-t border-slate-100 pt-2">
+              <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Risk by group</h4>
+              <ul className="space-y-1">
+                {d.groupRisks.map((g) => (
+                  <li key={g.groupId} className="flex items-center justify-between text-sm">
+                    <Link to={`/projects/${projectId}/impact/${g.groupId}`} className="text-indigo-700 hover:underline">
+                      {g.groupName}
+                    </Link>
+                    <span className="flex items-center gap-2 text-xs text-slate-500">
+                      CC: {g.cc ?? 'NA'} · OA: {g.oa ?? 'NA'} <RiskBadge quadrant={g.quadrant} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
 
@@ -141,7 +169,7 @@ export function ProjectDashboardPage() {
         <div className="cmt-card">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="font-semibold">ADKAR Barrier Points</h3>
-            <Link to={`/projects/${projectId}/adkar`} className="text-xs font-medium text-indigo-600 hover:underline">
+            <Link to={`/projects/${projectId}/assessments`} className="text-xs font-medium text-indigo-600 hover:underline">
               ADKAR assessments →
             </Link>
           </div>

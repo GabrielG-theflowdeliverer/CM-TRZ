@@ -27,7 +27,16 @@ export interface DashboardPayload {
 export interface ProjectDashboardPayload {
   project: ReturnType<typeof projects.getProject>;
   pct: { label: string | null; date: string | null; scores: Record<string, number | null> } | null;
-  risk: { label: string | null; date: string | null; cc: number | null; oa: number | null; quadrant: string | null } | null;
+  risk: {
+    label: string | null;
+    date: string | null;
+    subject: string;
+    cc: number | null;
+    oa: number | null;
+    quadrant: string | null;
+  } | null;
+  /** Every group that has its own risk run, for the dashboard's group-risk list. */
+  groupRisks: Array<{ groupId: string; groupName: string; cc: number | null; oa: number | null; quadrant: string | null }>;
   aspectsImpactedHistogram: number[];
   degreeOfImpactHistogram: number[];
   barrierCounts: Record<string, number>;
@@ -47,8 +56,23 @@ export interface ProjectDashboardPayload {
 export function getProjectDashboard(db: Db, projectId: string): ProjectDashboardPayload {
   const project = projects.getProject(db, projectId);
   const latestPct = assessments.latestAssessment(db, projectId, 'pct');
-  const latestRisk = assessments.latestAssessment(db, projectId, 'risk', { kind: 'project', id: null });
+  // Latest risk across ANY subject (overall or a group) so it always surfaces.
+  const latestRisk = assessments.latestAssessment(db, projectId, 'risk');
   const groups = impact.listGroups(db, projectId);
+  const groupNames = new Map(groups.map((g) => [g.id, g.name]));
+  const riskSubject = (a: typeof latestRisk): string =>
+    a?.subjectKind === 'group'
+      ? (groupNames.get(a.subjectId ?? '') ?? 'Group')
+      : 'Overall Change';
+  const groupRisks = groups
+    .filter((g) => g.computed.risk)
+    .map((g) => ({
+      groupId: g.id,
+      groupName: g.name,
+      cc: g.computed.risk!.cc,
+      oa: g.computed.risk!.oa,
+      quadrant: g.computed.risk!.quadrant,
+    }));
   const histogramInput = groups.map((g) => ({ aspectImpacts: g.aspects.map((a) => a.impact) }));
   const latestReport = cmPerf
     .listReports(db, projectId)
@@ -66,9 +90,11 @@ export function getProjectDashboard(db: Db, projectId: string): ProjectDashboard
       ? {
           label: latestRisk.label,
           date: latestRisk.completedDate ?? latestRisk.scheduledDate,
+          subject: riskSubject(latestRisk),
           ...latestRisk.computed.risk,
         }
       : null,
+    groupRisks,
     aspectsImpactedHistogram: aspectsImpactedHistogram(histogramInput),
     degreeOfImpactHistogram: degreeOfImpactHistogram(histogramInput),
     barrierCounts: barrierPointCounts(groups.map((g) => g.computed.barrierPoint as BarrierPoint | null)),

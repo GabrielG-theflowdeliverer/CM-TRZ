@@ -79,6 +79,40 @@ describe('tracking schedules and CM performance', () => {
     await request(ctx.app).delete(`/api/cm-perf-reports/${report.id}`).expect(204);
   });
 
+  it('reconciles report items when blueprints/plans are added or removed after creation', async () => {
+    const { body: report } = await request(ctx.app)
+      .post(`/api/projects/${projectId}/cm-perf-reports`)
+      .send({ name: 'Rolling report' })
+      .expect(201);
+    expect(report.items).toHaveLength(5);
+    // Set a status so we can confirm reconciliation preserves it.
+    const commsItem = report.items.find((i: { label: string }) => i.label === 'Communications Plan');
+    await request(ctx.app).patch(`/api/cm-perf-items/${commsItem.id}`).send({ status: 'On Target' }).expect(200);
+
+    // Add a new blueprint and a new extend plan — both should appear on re-read.
+    await request(ctx.app)
+      .post(`/api/projects/${projectId}/blueprints`)
+      .send({ scopeKind: 'custom', name: 'Release 2 Blueprint' })
+      .expect(201);
+    const { body: extend } = await request(ctx.app)
+      .post(`/api/projects/${projectId}/plans`)
+      .send({ kind: 'extend', name: 'Resistance Management Plan' })
+      .expect(201);
+
+    const { body: refreshed } = await request(ctx.app).get(`/api/cm-perf-reports/${report.id}`).expect(200);
+    expect(refreshed.items).toHaveLength(7);
+    expect(refreshed.items.map((i: { label: string }) => i.label)).toContain('Release 2 Blueprint');
+    expect(refreshed.items.map((i: { label: string }) => i.label)).toContain('Resistance Management Plan');
+    // Existing status preserved through reconciliation.
+    expect(refreshed.items.find((i: { label: string }) => i.label === 'Communications Plan').status).toBe('On Target');
+
+    // Deleting the extend plan drops its row on next read.
+    await request(ctx.app).delete(`/api/plans/${extend.id}`).expect(204);
+    const { body: afterDelete } = await request(ctx.app).get(`/api/cm-perf-reports/${report.id}`).expect(200);
+    expect(afterDelete.items.map((i: { label: string }) => i.label)).not.toContain('Resistance Management Plan');
+    expect(afterDelete.items).toHaveLength(6);
+  });
+
   it('manages adapt actions blocks', async () => {
     const { body: block } = await request(ctx.app)
       .post(`/api/projects/${projectId}/adapt-actions`)

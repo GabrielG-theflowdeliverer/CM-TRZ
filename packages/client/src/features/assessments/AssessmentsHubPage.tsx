@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import {
+  ADKAR_ASSESSMENT_INTRO,
   ASSESSMENT_TYPE_LABELS,
   PCT_ASPECT_KEYS,
   PCT_ASPECT_LABELS,
@@ -17,19 +19,118 @@ import {
   YAxis,
 } from 'recharts';
 import { api } from '../../lib/api';
-import type { AssessmentDto } from '../../lib/types';
+import type { AssessmentDto, GroupDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
+import { useGroups } from '../impact/useGroups';
 import { useAssessments, useInvalidateAssessments } from './useAssessments';
-import { BandChip, RiskBadge } from '../../ui/scores';
+import { BandChip, BarrierBadge, RiskBadge } from '../../ui/scores';
 
-const HUB_TYPES: AssessmentType[] = ['pct', 'risk', 'sponsor_competency', 'manager_competency'];
+// ADKAR sits directly below PCT; competency assessments follow the risk block.
+const HUB_TYPES: AssessmentType[] = ['pct', 'adkar', 'risk', 'sponsor_competency', 'manager_competency'];
 
 const TYPE_HINTS: Record<string, string> = {
   pct: 'Prosci Change Triangle — project health across Success, Leadership/Sponsorship, Project Management and Change Management. Repeat over time to track Organizational Performance.',
+  adkar: ADKAR_ASSESSMENT_INTRO,
   risk: 'Change Characteristics vs Organizational Attributes — determines the risk quadrant used to scale your approach.',
   sponsor_competency: 'How effectively the primary sponsor fulfilled their role (out of 100).',
   manager_competency: 'How effectively a people manager led their team through the change (out of 100).',
 };
+
+const OVERALL = '__overall__';
+
+/** ADKAR section inside the Assessments hub — targets the overall change or a group. */
+function AdkarSection({ projectId, runs, groups }: { projectId: string; runs: AssessmentDto[]; groups: GroupDto[] }) {
+  const invalidate = useInvalidateAssessments(projectId);
+  const [target, setTarget] = useState(OVERALL);
+  const create = useMutation({
+    mutationFn: (input: { copyFromLatest?: boolean }) =>
+      api.post<AssessmentDto>(`/api/projects/${projectId}/assessments`, {
+        type: 'adkar',
+        subjectKind: target === OVERALL ? 'project' : 'group',
+        subjectId: target === OVERALL ? null : target,
+        copyFromLatest: input.copyFromLatest,
+      }),
+    onSuccess: () => invalidate(),
+  });
+  const deleteRun = useMutation({
+    mutationFn: (id: string) => api.del(`/api/assessments/${id}`),
+    onSuccess: () => invalidate(),
+  });
+  const groupName = (run: AssessmentDto) =>
+    run.subjectKind === 'project' ? 'Overall Change' : (groups.find((g) => g.id === run.subjectId)?.name ?? '(group)');
+  const visible = runs.filter((r) => r.subjectKind !== 'role');
+
+  return (
+    <section className="cmt-card">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-semibold">{ASSESSMENT_TYPE_LABELS.adkar}</h3>
+        <div className="flex items-center gap-1.5">
+          <select className="cmt-input w-44" value={target} onChange={(e) => setTarget(e.target.value)}>
+            <option value={OVERALL}>Overall Change</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+          {visible.length > 0 && (
+            <button className="cmt-btn-secondary" onClick={() => create.mutate({ copyFromLatest: true })}>
+              New run (copy latest)
+            </button>
+          )}
+          <button className="cmt-btn" onClick={() => create.mutate({})}>
+            New run
+          </button>
+        </div>
+      </div>
+      <p className="mb-3 text-xs text-slate-500">{TYPE_HINTS.adkar}</p>
+      {visible.length === 0 ? (
+        <p className="text-sm text-slate-400">No runs yet.</p>
+      ) : (
+        <table className="w-full">
+          <thead>
+            <tr>
+              <th className="cmt-th">Run</th>
+              <th className="cmt-th w-44">Impacted Group(s)</th>
+              <th className="cmt-th">Scheduled</th>
+              <th className="cmt-th">Completed</th>
+              <th className="cmt-th">Barrier Point</th>
+              <th className="cmt-th w-16"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((run, i) => (
+              <tr key={run.id}>
+                <td className="cmt-td">
+                  <Link className="font-medium text-indigo-700 hover:underline" to={`/projects/${projectId}/assessments/${run.id}`}>
+                    {run.label ?? `Run ${i + 1}`}
+                  </Link>
+                  {run.status && <span className="ml-2 text-xs text-slate-400">{run.status}</span>}
+                </td>
+                <td className="cmt-td text-xs">{groupName(run)}</td>
+                <td className="cmt-td text-xs text-slate-500">{run.scheduledDate ?? '—'}</td>
+                <td className="cmt-td text-xs text-slate-500">{run.completedDate ?? '—'}</td>
+                <td className="cmt-td">
+                  <BarrierBadge barrier={run.computed.adkar?.barrierPoint} />
+                </td>
+                <td className="cmt-td text-right">
+                  <button
+                    className="cmt-btn-danger"
+                    onClick={() => {
+                      if (confirm('Delete this assessment run?')) deleteRun.mutate(run.id);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
 
 const ASPECT_COLORS: Record<string, string> = {
   success: '#4f46e5',
@@ -70,6 +171,7 @@ function RunSummary({ run }: { run: AssessmentDto }) {
 export function AssessmentsHubPage() {
   const { projectId } = useProject();
   const { data: runs } = useAssessments(projectId);
+  const { data: groups } = useGroups(projectId);
   const invalidate = useInvalidateAssessments(projectId);
 
   const createRun = useMutation({
@@ -133,6 +235,9 @@ export function AssessmentsHubPage() {
       )}
 
       {HUB_TYPES.map((type) => {
+        if (type === 'adkar') {
+          return <AdkarSection key="adkar" projectId={projectId} runs={byType('adkar')} groups={groups ?? []} />;
+        }
         const typeRuns = byType(type);
         return (
           <section key={type} className="cmt-card">

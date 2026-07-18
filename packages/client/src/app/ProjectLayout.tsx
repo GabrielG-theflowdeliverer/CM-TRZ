@@ -13,10 +13,7 @@ const NAV_SECTIONS: Array<{ title: string; items: Array<{ to: string; label: str
   },
   {
     title: 'Assess',
-    items: [
-      { to: 'assessments', label: 'Assessments' },
-      { to: 'adkar', label: 'ADKAR Assessments' },
-    ],
+    items: [{ to: 'assessments', label: 'Assessments' }],
   },
   {
     title: 'Phase 1 — Prepare Approach',

@@ -70,6 +70,11 @@ describe('group-scoped risk assessments (C3)', () => {
     const { body: groupAfter } = await request(ctx.app).get(`/api/groups/${group.id}`).expect(200);
     expect(groupAfter.computed.risk).toEqual({ assessmentId: run.id, cc: 70, oa: 56, quadrant: 'High' });
 
+    // The project dashboard surfaces the group risk and names its subject.
+    const { body: dash } = await request(ctx.app).get(`/api/projects/${projectId}/dashboard`).expect(200);
+    expect(dash.risk.subject).toBe('Sales');
+    expect(dash.groupRisks).toEqual([{ groupId: group.id, groupName: 'Sales', cc: 70, oa: 56, quadrant: 'High' }]);
+
     // Project-level risk stays independent of group risk.
     const { body: projectRuns } = await request(ctx.app)
       .get(`/api/projects/${projectId}/assessments?type=risk&subjectKind=project`)

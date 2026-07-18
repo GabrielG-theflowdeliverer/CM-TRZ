@@ -211,6 +211,7 @@ describe('dashboard', () => {
     const { body: d } = await request(ctx.app).get(`/api/projects/${projectId}/dashboard`).expect(200);
     expect(d.pct.scores.success).toBe(30);
     expect(d.risk.quadrant).toBe('High');
+    expect(d.risk.subject).toBe('Overall Change');
     // One group with 2 aspects impacted (4 and 2 -> degree 3).
     expect(d.aspectsImpactedHistogram[1]).toBe(1); // bucket "2 aspects"
     expect(d.degreeOfImpactHistogram[2]).toBe(1); // bucket "3"

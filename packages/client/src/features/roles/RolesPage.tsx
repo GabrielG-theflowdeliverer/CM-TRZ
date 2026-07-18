@@ -13,43 +13,12 @@ import {
   type RoleRoster,
 } from '@cmt/domain';
 import { api } from '../../lib/api';
-import type { GroupDto, RoleDto } from '../../lib/types';
+import type { RoleDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroups } from '../impact/useGroups';
 import { BarrierBadge, ScorePicker, adkarCellColor } from '../../ui/scores';
 import { ComboField, Select, TextArea, TextField } from '../../ui/controls';
-
-function GroupMultiSelect(props: {
-  groups: GroupDto[];
-  selected: string[];
-  onChange: (groupIds: string[]) => void;
-}) {
-  const names = props.groups.filter((g) => props.selected.includes(g.id)).map((g) => g.name);
-  return (
-    <details className="relative">
-      <summary className="cmt-input cursor-pointer list-none truncate" title={names.join(', ')}>
-        {names.length ? names.join(', ') : <span className="text-slate-400">Select groups…</span>}
-      </summary>
-      <div className="absolute z-10 mt-1 max-h-48 w-56 overflow-auto rounded border border-slate-200 bg-white p-2 shadow-lg">
-        {props.groups.length === 0 && <p className="text-xs text-slate-400">No impacted groups defined yet.</p>}
-        {props.groups.map((g) => (
-          <label key={g.id} className="flex items-center gap-2 py-0.5 text-sm">
-            <input
-              type="checkbox"
-              checked={props.selected.includes(g.id)}
-              onChange={(e) =>
-                props.onChange(
-                  e.target.checked ? [...props.selected, g.id] : props.selected.filter((id) => id !== g.id),
-                )
-              }
-            />
-            {g.name}
-          </label>
-        ))}
-      </div>
-    </details>
-  );
-}
+import { MultiSelect } from '../../ui/MultiSelect';
 
 export function RolesPage() {
   const { projectId } = useProject();
@@ -145,9 +114,11 @@ export function RolesPage() {
                         />
                       </td>
                       <td className="cmt-td">
-                        <GroupMultiSelect
-                          groups={groups ?? []}
+                        <MultiSelect
+                          options={(groups ?? []).map((g) => ({ value: g.id, label: g.name }))}
                           selected={role.groupIds}
+                          placeholder="Select groups…"
+                          emptyHint="No impacted groups defined yet."
                           onChange={(groupIds) => update.mutate({ id: role.id, fields: { groupIds } })}
                         />
                       </td>

@@ -3,6 +3,54 @@ import { newId, nowIso, type Db } from '../../infra/db.js';
 import { notFound } from '../../infra/http.js';
 import { getProject } from '../projects/projects.service.js';
 
+/**
+ * Keep a report's items in step with the project's current blueprints and
+ * plans: add rows for newly-created ones, drop rows whose blueprint/plan was
+ * deleted, and refresh labels. Existing statuses/descriptions are preserved.
+ */
+function reconcileItems(db: Db, reportId: string, projectId: string): void {
+  const items = db
+    .prepare('SELECT id, kind, ref_id FROM cm_perf_items WHERE report_id = ?')
+    .all(reportId) as Array<{ id: string; kind: string; ref_id: string | null }>;
+  const byRef = new Map(items.filter((i) => i.ref_id).map((i) => [`${i.kind}:${i.ref_id}`, i]));
+
+  const blueprints = db
+    .prepare('SELECT id, name FROM blueprints WHERE project_id = ? ORDER BY created_at, rowid')
+    .all(projectId) as Array<{ id: string; name: string }>;
+  const plans = db
+    .prepare('SELECT id, name FROM plans WHERE project_id = ? ORDER BY kind, position, rowid')
+    .all(projectId) as Array<{ id: string; name: string }>;
+
+  const current = [
+    ...blueprints.map((b) => ({ kind: 'blueprint', id: b.id, name: b.name })),
+    ...plans.map((p) => ({ kind: 'plan', id: p.id, name: p.name })),
+  ];
+  const currentRefs = new Set(current.map((c) => `${c.kind}:${c.id}`));
+
+  const maxPos = db
+    .prepare('SELECT COALESCE(MAX(position) + 1, 0) AS pos FROM cm_perf_items WHERE report_id = ?')
+    .get(reportId) as { pos: number };
+  let position = maxPos.pos;
+
+  const insert = db.prepare(
+    `INSERT INTO cm_perf_items (id, report_id, position, kind, ref_id, label) VALUES (?, ?, ?, ?, ?, ?)`,
+  );
+  const relabel = db.prepare('UPDATE cm_perf_items SET label = ? WHERE id = ?');
+  const drop = db.prepare('DELETE FROM cm_perf_items WHERE id = ?');
+
+  db.transaction(() => {
+    for (const c of current) {
+      const existing = byRef.get(`${c.kind}:${c.id}`);
+      if (existing) relabel.run(c.name, existing.id);
+      else insert.run(newId(), reportId, position++, c.kind, c.id, c.name);
+    }
+    // Drop items whose blueprint/plan no longer exists (leave legacy null-ref rows).
+    for (const item of items) {
+      if (item.ref_id && !currentRefs.has(`${item.kind}:${item.ref_id}`)) drop.run(item.id);
+    }
+  })();
+}
+
 interface ReportRow {
   id: string;
   project_id: string;
@@ -56,12 +104,14 @@ export function listReports(db: Db, projectId: string): CmPerfReport[] {
   const rows = db
     .prepare('SELECT * FROM cm_perf_reports WHERE project_id = ? ORDER BY COALESCE(date, created_at), rowid')
     .all(projectId) as ReportRow[];
+  for (const row of rows) reconcileItems(db, row.id, projectId);
   return rows.map((row) => assemble(db, row));
 }
 
 export function getReport(db: Db, id: string): CmPerfReport {
   const row = db.prepare('SELECT * FROM cm_perf_reports WHERE id = ?').get(id) as ReportRow | undefined;
   if (!row) notFound('CM performance report');
+  reconcileItems(db, row.id, row.project_id);
   return assemble(db, row);
 }
 
