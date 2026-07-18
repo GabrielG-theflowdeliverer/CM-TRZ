@@ -3,6 +3,11 @@ import { useEffect, useRef, useState } from 'react';
 /**
  * Local-first editing for a text-ish field: keeps keystrokes in local state,
  * commits on blur (and on unmount) only when the value changed.
+ *
+ * Resilience: after committing, the field stays "dirty" until the incoming
+ * server value reflects what was saved. So a failed save does NOT clear the
+ * edit — the value is preserved and re-committed on the next blur/unmount,
+ * while the global mutation-error toast tells the user it didn't stick.
  */
 export function useAutosaveField(
   serverValue: string | null | undefined,
@@ -14,18 +19,29 @@ export function useAutosaveField(
 } {
   const [value, setValue] = useState(serverValue ?? '');
   const dirty = useRef(false);
+  // The value we last handed to save(); dirty clears once the server echoes it.
+  const savedValue = useRef<string | null>(null);
   const latest = useRef({ value, save });
   latest.current = { value, save };
 
-  // Adopt server updates unless the user has unsaved local edits.
   useEffect(() => {
-    if (!dirty.current) setValue(serverValue ?? '');
+    if (!dirty.current) {
+      // No local edits in flight — adopt the server value.
+      setValue(serverValue ?? '');
+    } else if ((serverValue ?? null) === savedValue.current) {
+      // The server now reflects our save — it succeeded; sync and clear.
+      dirty.current = false;
+      setValue(serverValue ?? '');
+    }
+    // Otherwise a save is still pending (or failed): keep the local edit.
   }, [serverValue]);
 
   useEffect(
     () => () => {
       if (dirty.current) {
-        latest.current.save(latest.current.value === '' ? null : latest.current.value);
+        const v = latest.current.value === '' ? null : latest.current.value;
+        savedValue.current = v;
+        latest.current.save(v);
       }
     },
     [],
@@ -39,8 +55,9 @@ export function useAutosaveField(
     },
     onBlur: () => {
       if (!dirty.current) return;
-      dirty.current = false;
-      save(value === '' ? null : value);
+      const v = value === '' ? null : value;
+      savedValue.current = v;
+      save(v); // stays dirty until the server echoes savedValue; toast surfaces failures
     },
   };
 }

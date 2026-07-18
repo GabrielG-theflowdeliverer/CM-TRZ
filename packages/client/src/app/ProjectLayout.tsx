@@ -1,7 +1,8 @@
-import { NavLink, Outlet, useParams, Link } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import type { Project } from '../lib/types';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 
 const NAV_SECTIONS: Array<{ title: string; items: Array<{ to: string; label: string }> }> = [
   {
@@ -56,6 +57,7 @@ export function useProject(): { projectId: string; project: Project | undefined 
 
 export function ProjectLayout() {
   const { project } = useProject();
+  const location = useLocation();
   return (
     <div className="flex min-h-screen">
       <aside className="w-64 shrink-0 border-r border-slate-200 bg-white">
@@ -97,7 +99,9 @@ export function ProjectLayout() {
         </nav>
       </aside>
       <main className="min-w-0 flex-1 p-6">
-        <Outlet />
+        <ErrorBoundary resetKey={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   );
