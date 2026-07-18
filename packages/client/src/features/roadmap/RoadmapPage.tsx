@@ -6,6 +6,7 @@ import type { Roadmap } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroups } from '../impact/useGroups';
 import { DateInput, TextField } from '../../ui/controls';
+import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
 
 export function RoadmapPage() {
   const { projectId, project } = useProject();
@@ -16,14 +17,13 @@ export function RoadmapPage() {
     enabled: projectId !== '',
   });
   const { data: groups } = useGroups(projectId);
+  const invalidateCaches = useInvalidateProjectCaches();
   const update = useMutation({
     mutationFn: (fields: Record<string, unknown>) =>
       api.put<Roadmap>(`/api/projects/${projectId}/roadmap`, fields),
     onSuccess: (data) => {
       queryClient.setQueryData(['roadmap', projectId], data);
-      void queryClient.invalidateQueries({ queryKey: ['blueprints', projectId] });
-      void queryClient.invalidateQueries({ queryKey: ['assessments', projectId] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      invalidateCaches(['blueprints', projectId], ['assessments', projectId]);
     },
   });
 

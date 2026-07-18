@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ACTIVITY_STATUSES, CM_PERF_STATUSES, type CmPerfReport } from '@cmt/domain';
-import { api } from '../../lib/api';
+import { ACTIVITY_STATUSES, CM_PERF_STATUSES } from '@cmt/domain';
 import { useProject } from '../../app/ProjectLayout';
 import { DateInput, Select, TextArea, TextField } from '../../ui/controls';
+import { useCmPerfReport, useCmPerfReportMutations, useCmPerfReports } from './useCmPerfReports';
 
 const STATUS_COLORS: Record<string, string> = {
   'No Progress': 'bg-slate-200 text-slate-700',
@@ -14,37 +13,12 @@ const STATUS_COLORS: Record<string, string> = {
   'Ahead of Target': 'bg-emerald-200 text-emerald-900',
 };
 
-export function useCmPerfReports(projectId: string) {
-  return useQuery({
-    queryKey: ['cm-perf-reports', projectId],
-    queryFn: () => api.get<CmPerfReport[]>(`/api/projects/${projectId}/cm-perf-reports`),
-    enabled: projectId !== '',
-  });
-}
-
 export function CmPerformancePage() {
   const { projectId } = useProject();
-  const queryClient = useQueryClient();
   const { data: reports } = useCmPerfReports(projectId);
   const [name, setName] = useState('');
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['cm-perf-reports', projectId] });
-    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    void queryClient.invalidateQueries({ queryKey: ['project-dashboard', projectId] });
-  };
-  const create = useMutation({
-    mutationFn: (reportName: string) =>
-      api.post<CmPerfReport>(`/api/projects/${projectId}/cm-perf-reports`, {
-        name: reportName,
-        date: new Date().toISOString().slice(0, 10),
-      }),
-    onSuccess: invalidate,
-  });
-  const remove = useMutation({
-    mutationFn: (id: string) => api.del(`/api/cm-perf-reports/${id}`),
-    onSuccess: invalidate,
-  });
+  const { create, remove } = useCmPerfReportMutations(projectId);
 
   return (
     <div className="max-w-4xl space-y-4">
@@ -130,28 +104,7 @@ export function CmPerformancePage() {
 export function CmPerfReportPage() {
   const { projectId } = useProject();
   const { reportId = '' } = useParams();
-  const queryClient = useQueryClient();
-  const { data: report } = useQuery({
-    queryKey: ['cm-perf-reports', projectId, reportId],
-    queryFn: () => api.get<CmPerfReport>(`/api/cm-perf-reports/${reportId}`),
-    enabled: reportId !== '',
-  });
-  const refresh = (data?: CmPerfReport) => {
-    if (data) queryClient.setQueryData(['cm-perf-reports', projectId, reportId], data);
-    void queryClient.invalidateQueries({ queryKey: ['cm-perf-reports', projectId] });
-    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    void queryClient.invalidateQueries({ queryKey: ['project-dashboard', projectId] });
-  };
-  const updateReport = useMutation({
-    mutationFn: (fields: Record<string, unknown>) =>
-      api.patch<CmPerfReport>(`/api/cm-perf-reports/${reportId}`, fields),
-    onSuccess: refresh,
-  });
-  const updateItem = useMutation({
-    mutationFn: (input: { id: string; fields: Record<string, unknown> }) =>
-      api.patch<CmPerfReport>(`/api/cm-perf-items/${input.id}`, input.fields),
-    onSuccess: refresh,
-  });
+  const { report, updateReport, updateItem } = useCmPerfReport(projectId, reportId);
 
   if (!report) return null;
   const sections = [

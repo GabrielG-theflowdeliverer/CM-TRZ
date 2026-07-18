@@ -23,11 +23,14 @@ import { TrackingPage } from '../features/tracking/TrackingPage';
 import { CmPerformancePage, CmPerfReportPage } from '../features/tracking/CmPerformancePage';
 import { AdaptActionsPage } from '../features/tracking/AdaptActionsPage';
 import { ReferencePage } from '../features/reference/ReferencePage';
+import { SurveyPage } from '../features/surveys/SurveyPage';
 
 export function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      {/* Public, chrome-less respondent survey — outside the project shell. */}
+      <Route path="/s/:token" element={<SurveyPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/projects/:projectId" element={<ProjectLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />

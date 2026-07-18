@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { GroupDto } from '../../lib/types';
+import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
 
 export function useGroups(projectId: string) {
   return useQuery({
@@ -11,12 +12,8 @@ export function useGroups(projectId: string) {
 }
 
 export function useGroupMutations(projectId: string) {
-  const queryClient = useQueryClient();
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['groups', projectId] });
-    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    void queryClient.invalidateQueries({ queryKey: ['assessments', projectId] });
-  };
+  const invalidateCaches = useInvalidateProjectCaches();
+  const invalidate = () => invalidateCaches(['groups', projectId], ['assessments', projectId]);
   const create = useMutation({
     mutationFn: (name: string) => api.post<GroupDto>(`/api/projects/${projectId}/groups`, { name }),
     onSuccess: invalidate,

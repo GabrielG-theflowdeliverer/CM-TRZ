@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   ACTIVITY_STATUSES,
   ADKAR_ELEMENTS,
@@ -15,12 +15,13 @@ import { DateInput, Select, TextArea } from '../../ui/controls';
 import { useActivities } from '../activities/useActivities';
 import { useAssessments } from '../assessments/useAssessments';
 import { useGroups } from '../impact/useGroups';
-import { useCmPerfReports } from './CmPerformancePage';
+import { useCmPerfReports } from './useCmPerfReports';
 import { TimelineView } from './TimelineView';
+import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
 
 export function TrackingPage() {
   const { projectId } = useProject();
-  const queryClient = useQueryClient();
+  const invalidateCaches = useInvalidateProjectCaches();
   const [view, setView] = useState<'timeline' | 'schedules'>('timeline');
   const { data: activities } = useActivities(projectId);
   const { data: assessments } = useAssessments(projectId);
@@ -37,10 +38,7 @@ export function TrackingPage() {
     enabled: projectId !== '',
   });
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['tracking', projectId] });
-    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-  };
+  const invalidate = () => invalidateCaches(['tracking', projectId]);
   const create = useMutation({
     mutationFn: (schedule: TrackingSchedule) =>
       api.post<TrackingEntry>(`/api/projects/${projectId}/tracking`, { schedule }),

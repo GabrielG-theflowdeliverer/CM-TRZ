@@ -12,6 +12,7 @@ import { newId, nowIso, type Db } from '../../infra/db.js';
 import { HttpError, notFound } from '../../infra/http.js';
 import * as repo from './assessments.repo.js';
 import { getProject } from '../projects/projects.service.js';
+import * as surveys from '../surveys/surveys.service.js';
 
 /** Derived, never-stored score block attached to API responses. */
 export interface AssessmentComputed {
@@ -21,7 +22,17 @@ export interface AssessmentComputed {
   competency?: { total: number; interpretation: string | null };
 }
 
-export type AssessmentWithComputed = Assessment & { computed: AssessmentComputed };
+/** Survey roll-up attached when an assessment is fed by a survey campaign. */
+export interface AssessmentSurveyView {
+  respondentCount: number;
+  distribution: Record<string, Record<number, number>>;
+  individuals: Array<{ personName: string; computed: AssessmentComputed }>;
+}
+
+export type AssessmentWithComputed = Assessment & {
+  computed: AssessmentComputed;
+  survey?: AssessmentSurveyView;
+};
 
 export function withComputed(a: Assessment): AssessmentWithComputed {
   const computed: AssessmentComputed = {};
@@ -51,18 +62,45 @@ export function withComputed(a: Assessment): AssessmentWithComputed {
   return { ...a, computed };
 }
 
+/**
+ * Present an assessment for reading. When a survey campaign has collected
+ * submissions for it, the aggregated survey responses supersede the
+ * practitioner's hand-entered ones for scoring (notes and other fields are
+ * untouched), and the individual results + distribution are attached. This is
+ * the single point where survey roll-up is applied, so every consumer
+ * (dashboard, exports, roadmap) sees the same value. Nothing is stored — the
+ * hand-entered responses remain in the table and reappear if the campaign is
+ * removed.
+ */
+function present(db: Db, a: Assessment): AssessmentWithComputed {
+  const survey = surveys.getAssessmentSurvey(db, a.id);
+  if (!survey) return withComputed(a);
+  const rolledUp = withComputed({ ...a, responses: survey.responses });
+  return {
+    ...rolledUp,
+    survey: {
+      respondentCount: survey.respondentCount,
+      distribution: survey.distribution,
+      individuals: survey.individuals.map((i) => ({
+        personName: i.personName,
+        computed: withComputed({ ...a, responses: i.responses }).computed,
+      })),
+    },
+  };
+}
+
 export function listAssessments(
   db: Db,
   projectId: string,
   filter: { type?: string; subjectKind?: string; subjectId?: string },
 ): AssessmentWithComputed[] {
   getProject(db, projectId); // 404 when the project is unknown
-  return repo.listAssessments(db, projectId, filter).map(withComputed);
+  return repo.listAssessments(db, projectId, filter).map((a) => present(db, a));
 }
 
 export function getAssessment(db: Db, id: string): AssessmentWithComputed {
   const a = repo.getAssessment(db, id) ?? notFound('Assessment');
-  return withComputed(a);
+  return present(db, a);
 }
 
 export function createAssessment(
@@ -152,7 +190,7 @@ export function latestAssessment(
   subject?: { kind: string; id: string | null },
 ): AssessmentWithComputed | null {
   const a = repo.latestAssessment(db, projectId, type, subject);
-  return a ? withComputed(a) : null;
+  return a ? present(db, a) : null;
 }
 
 /**

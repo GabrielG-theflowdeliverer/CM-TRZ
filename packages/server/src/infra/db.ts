@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 export type Db = Database.Database;
@@ -37,6 +38,11 @@ function migrate(db: Db): void {
 
 export function newId(): string {
   return crypto.randomUUID();
+}
+
+/** Unguessable URL-safe token for public survey links (192 bits of entropy). */
+export function newToken(): string {
+  return randomBytes(24).toString('base64url');
 }
 
 export function nowIso(): string {
