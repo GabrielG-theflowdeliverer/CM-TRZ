@@ -1,4 +1,4 @@
-import type { SurveyCampaign, SurveyCampaignSummary, SurveyRecipient } from '@cmt/domain';
+import type { AssessmentType, SurveyCampaign, SurveyCampaignSummary, SurveyRecipient } from '@cmt/domain';
 import { newId, newToken, nowIso, type Db } from '../../infra/db.js';
 import { HttpError, notFound } from '../../infra/http.js';
 import * as repo from './surveys.repo.js';
@@ -66,6 +66,41 @@ export function getCampaign(db: Db, id: string): SurveyCampaign {
     createdAt: c.created_at,
     recipients: repo.listRecipientRows(db, id).map(toRecipient),
   };
+}
+
+/**
+ * What a respondent sees for their tokened link — just their name and the
+ * survey to fill, never any other project data. `responses` is empty until
+ * they submit (there is no cross-session draft); after submit it's read-only.
+ */
+export interface SurveyView {
+  personName: string;
+  assessmentType: AssessmentType;
+  assessmentLabel: string | null;
+  submitted: boolean;
+  responses: Record<string, number | null>;
+}
+
+export function getSurveyByToken(db: Db, token: string): SurveyView {
+  const row = repo.getRecipientByToken(db, token) ?? notFound('Survey');
+  return {
+    personName: row.person_name,
+    assessmentType: row.assessment_type as AssessmentType,
+    assessmentLabel: row.assessment_label,
+    submitted: row.submitted_at !== null,
+    responses: row.submitted_at ? repo.getRecipientResponses(db, row.id) : {},
+  };
+}
+
+/** Final, one-time submission. Rejects a second submit (submit-once). */
+export function submitSurvey(db: Db, token: string, responses: Record<string, number | null>): SurveyView {
+  const row = repo.getRecipientByToken(db, token) ?? notFound('Survey');
+  if (row.submitted_at !== null) throw new HttpError(409, 'This survey has already been submitted');
+  db.transaction(() => {
+    repo.upsertResponses(db, row.id, responses);
+    repo.markSubmitted(db, row.id, nowIso());
+  })();
+  return getSurveyByToken(db, token);
 }
 
 export function listCampaigns(db: Db, projectId: string): SurveyCampaignSummary[] {

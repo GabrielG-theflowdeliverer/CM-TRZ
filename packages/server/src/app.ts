@@ -18,7 +18,11 @@ import { createProjectDocsRouter, createResistanceRouter } from './modules/docs/
 import { createCmPerfRouters, createProjectCmPerfRouter } from './modules/cm-perf/cm-perf.router.js';
 import { createImportRouter, createProjectExportRouter } from './modules/transfer/transfer.router.js';
 import { createDashboardRouter, createProjectDashboardRouter } from './modules/dashboard/dashboard.router.js';
-import { createProjectSurveysRouter, createSurveysRouter } from './modules/surveys/surveys.router.js';
+import {
+  createProjectSurveysRouter,
+  createSurveyCaptureRouter,
+  createSurveysRouter,
+} from './modules/surveys/surveys.router.js';
 
 /** Composition root: wires every feature module onto the /api surface. */
 export function createApp(db: Db): Express {
@@ -71,6 +75,10 @@ export function createApp(db: Db): Express {
   // Cross-project
   app.use('/api/import', createImportRouter(db));
   app.use('/api/dashboard', createDashboardRouter(db));
+
+  // Public survey capture — the only respondent-facing surface, token-scoped,
+  // exposes nothing about the project beyond the single survey behind the token.
+  app.use('/api/survey', createSurveyCaptureRouter(db));
 
   app.use(errorHandler);
   return app;

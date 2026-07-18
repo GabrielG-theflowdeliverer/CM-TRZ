@@ -1,6 +1,24 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
+import { SPONSOR_COMPETENCY_ITEM_KEYS } from '@cmt/domain';
 import { createTestApp, type TestContext } from './harness.js';
+
+/** A complete, valid sponsor-competency response set (scores 1..5). */
+function fullResponses(): Record<string, number> {
+  return Object.fromEntries(SPONSOR_COMPETENCY_ITEM_KEYS.map((k) => [k, 4]));
+}
+
+async function campaignWithToken(pid: string, aid: string): Promise<string> {
+  const { body: role } = await request(ctx.app)
+    .post(`/api/projects/${pid}/roles`)
+    .send({ roster: 'sponsor_coalition', roleName: 'Sponsor', personName: 'J. Smith' })
+    .expect(201);
+  const { body: campaign } = await request(ctx.app)
+    .post(`/api/projects/${pid}/surveys`)
+    .send({ assessmentId: aid, roleIds: [role.id] })
+    .expect(201);
+  return campaign.recipients[0].token;
+}
 
 let ctx: TestContext;
 let projectId: string;
@@ -105,5 +123,60 @@ describe('survey campaigns', () => {
     expect(fetched.recipients).toHaveLength(1);
     expect(fetched.recipients[0].personName).toBe('J. Smith'); // snapshot survived
     expect(fetched.recipients[0].roleId).toBeNull(); // link cleared, data kept
+  });
+});
+
+describe('public survey capture (/api/survey/:token)', () => {
+  it('serves the blank survey by token, exposing only the respondent view', async () => {
+    const token = await campaignWithToken(projectId, assessmentId);
+    const { body } = await request(ctx.app).get(`/api/survey/${token}`).expect(200);
+    expect(body).toEqual({
+      personName: 'J. Smith',
+      assessmentType: 'sponsor_competency',
+      assessmentLabel: null,
+      submitted: false,
+      responses: {},
+    });
+    // No project/campaign internals leak into the respondent view.
+    expect(body).not.toHaveProperty('projectId');
+    expect(body).not.toHaveProperty('campaignId');
+  });
+
+  it('accepts a submission, then reports it submitted with read-only responses', async () => {
+    const token = await campaignWithToken(projectId, assessmentId);
+    const { body: after } = await request(ctx.app)
+      .put(`/api/survey/${token}`)
+      .send(fullResponses())
+      .expect(200);
+    expect(after.submitted).toBe(true);
+
+    const { body: refetch } = await request(ctx.app).get(`/api/survey/${token}`).expect(200);
+    expect(refetch.submitted).toBe(true);
+    expect(refetch.responses[SPONSOR_COMPETENCY_ITEM_KEYS[0]!]).toBe(4);
+
+    // The practitioner sees the progress tick up.
+    const { body: list } = await request(ctx.app).get(`/api/projects/${projectId}/surveys`).expect(200);
+    expect(list[0].submittedCount).toBe(1);
+  });
+
+  it('refuses a second submission (submit-once)', async () => {
+    const token = await campaignWithToken(projectId, assessmentId);
+    await request(ctx.app).put(`/api/survey/${token}`).send(fullResponses()).expect(200);
+    const { body } = await request(ctx.app).put(`/api/survey/${token}`).send(fullResponses()).expect(409);
+    expect(body.error).toMatch(/already been submitted/i);
+  });
+
+  it('validates responses against the assessment type', async () => {
+    const token = await campaignWithToken(projectId, assessmentId);
+    await request(ctx.app)
+      .put(`/api/survey/${token}`)
+      .send({ [SPONSOR_COMPETENCY_ITEM_KEYS[0]!]: 9 }) // out of 1..5 range
+      .expect(400);
+    await request(ctx.app).put(`/api/survey/${token}`).send({ 'bogus.key': 3 }).expect(400);
+  });
+
+  it('404s an unknown token on both read and submit without leaking existence', async () => {
+    await request(ctx.app).get('/api/survey/not-a-real-token').expect(404);
+    await request(ctx.app).put('/api/survey/not-a-real-token').send(fullResponses()).expect(404);
   });
 });
