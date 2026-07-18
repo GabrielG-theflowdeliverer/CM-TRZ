@@ -19,6 +19,7 @@ export * from './calc/risk.js';
 export * from './calc/competency.js';
 export * from './calc/progress.js';
 export * from './calc/health.js';
+export * from './calc/aggregate.js';
 
 // Entities (types + zod schemas)
 export * from './entities/common.js';
