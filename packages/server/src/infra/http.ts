@@ -14,6 +14,11 @@ export function notFound(what: string): never {
   throw new HttpError(404, `${what} not found`);
 }
 
+/** The `:projectId` path param on project-scoped routers, typed once. */
+export function projectIdParam(req: { params: unknown }): string {
+  return (req.params as Record<string, string>).projectId!;
+}
+
 /** Parse and validate a request body against a zod schema (400 on failure). */
 export function parseBody<S extends ZodTypeAny>(schema: S, body: unknown): z.output<S> {
   const result = schema.safeParse(body);

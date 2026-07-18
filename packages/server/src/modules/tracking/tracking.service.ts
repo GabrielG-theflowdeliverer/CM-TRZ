@@ -1,7 +1,29 @@
 import type { AdaptAction, TrackingEntry } from '@cmt/domain';
 import { newId, type Db } from '../../infra/db.js';
 import { notFound } from '../../infra/http.js';
+import { nextPosition, updateById } from '../../infra/sql.js';
 import { getProject } from '../projects/projects.service.js';
+
+const TRACKING_COLUMNS = {
+  scheduledDate: 'scheduled_date',
+  completedDate: 'completed_date',
+  description: 'description',
+  status: 'status',
+  results: 'results',
+  notes: 'notes',
+  position: 'position',
+} as const;
+
+const ADAPT_COLUMNS = {
+  assessmentResults: 'assessment_results',
+  strengths: 'strengths',
+  opportunities: 'opportunities',
+  observations: 'observations',
+  implications: 'implications',
+  actionSteps: 'action_steps',
+  notes: 'notes',
+  position: 'position',
+} as const;
 
 // ---------- tracking entries (three schedules) ----------
 
@@ -56,9 +78,7 @@ export function createTracking(
 ): TrackingEntry {
   getProject(db, projectId);
   const id = newId();
-  const pos = db
-    .prepare('SELECT COALESCE(MAX(position) + 1, 0) AS pos FROM tracking_entries WHERE project_id = ? AND schedule = ?')
-    .get(projectId, input.schedule) as { pos: number };
+  const pos = nextPosition(db, 'tracking_entries', { project_id: projectId, schedule: input.schedule });
   db.prepare(
     `INSERT INTO tracking_entries (id, project_id, schedule, position, scheduled_date, completed_date, description, status, results, notes)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -66,7 +86,7 @@ export function createTracking(
     id,
     projectId,
     input.schedule,
-    pos.pos,
+    pos,
     input.scheduledDate ?? null,
     input.completedDate ?? null,
     input.description ?? null,
@@ -82,20 +102,7 @@ export function updateTracking(
   id: string,
   fields: Partial<Omit<TrackingEntry, 'id' | 'projectId' | 'schedule'>>,
 ): TrackingEntry {
-  const current = db.prepare('SELECT * FROM tracking_entries WHERE id = ?').get(id) as TrackingRow | undefined;
-  if (!current) notFound('Tracking entry');
-  db.prepare(
-    `UPDATE tracking_entries SET scheduled_date = ?, completed_date = ?, description = ?, status = ?, results = ?, notes = ?, position = ? WHERE id = ?`,
-  ).run(
-    fields.scheduledDate !== undefined ? fields.scheduledDate : current.scheduled_date,
-    fields.completedDate !== undefined ? fields.completedDate : current.completed_date,
-    fields.description !== undefined ? fields.description : current.description,
-    fields.status !== undefined ? fields.status : current.status,
-    fields.results !== undefined ? fields.results : current.results,
-    fields.notes !== undefined ? fields.notes : current.notes,
-    fields.position ?? current.position,
-    id,
-  );
+  if (!updateById(db, 'tracking_entries', id, TRACKING_COLUMNS, fields)) notFound('Tracking entry');
   return toTracking(db.prepare('SELECT * FROM tracking_entries WHERE id = ?').get(id) as TrackingRow);
 }
 
@@ -148,16 +155,14 @@ export function createAdapt(
 ): AdaptAction {
   getProject(db, projectId);
   const id = newId();
-  const pos = db
-    .prepare('SELECT COALESCE(MAX(position) + 1, 0) AS pos FROM adapt_actions WHERE project_id = ?')
-    .get(projectId) as { pos: number };
+  const pos = nextPosition(db, 'adapt_actions', { project_id: projectId });
   db.prepare(
     `INSERT INTO adapt_actions (id, project_id, position, assessment_results, strengths, opportunities, observations, implications, action_steps, notes)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     projectId,
-    pos.pos,
+    pos,
     input.assessmentResults ?? null,
     input.strengths ?? null,
     input.opportunities ?? null,
@@ -170,21 +175,7 @@ export function createAdapt(
 }
 
 export function updateAdapt(db: Db, id: string, fields: Partial<Omit<AdaptAction, 'id' | 'projectId'>>): AdaptAction {
-  const current = db.prepare('SELECT * FROM adapt_actions WHERE id = ?').get(id) as AdaptRow | undefined;
-  if (!current) notFound('Adapt action');
-  db.prepare(
-    `UPDATE adapt_actions SET assessment_results = ?, strengths = ?, opportunities = ?, observations = ?, implications = ?, action_steps = ?, notes = ?, position = ? WHERE id = ?`,
-  ).run(
-    fields.assessmentResults !== undefined ? fields.assessmentResults : current.assessment_results,
-    fields.strengths !== undefined ? fields.strengths : current.strengths,
-    fields.opportunities !== undefined ? fields.opportunities : current.opportunities,
-    fields.observations !== undefined ? fields.observations : current.observations,
-    fields.implications !== undefined ? fields.implications : current.implications,
-    fields.actionSteps !== undefined ? fields.actionSteps : current.action_steps,
-    fields.notes !== undefined ? fields.notes : current.notes,
-    fields.position ?? current.position,
-    id,
-  );
+  if (!updateById(db, 'adapt_actions', id, ADAPT_COLUMNS, fields)) notFound('Adapt action');
   return toAdapt(db.prepare('SELECT * FROM adapt_actions WHERE id = ?').get(id) as AdaptRow);
 }
 

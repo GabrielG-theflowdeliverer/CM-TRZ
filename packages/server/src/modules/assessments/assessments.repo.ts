@@ -1,5 +1,6 @@
 import type { Assessment, AssessmentType, SubjectKind } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
+import { updateById } from '../../infra/sql.js';
 
 interface AssessmentRow {
   id: string;
@@ -132,6 +133,14 @@ export function insertAssessment(
   );
 }
 
+const ASSESSMENT_COLUMNS = {
+  label: 'label',
+  scheduledDate: 'scheduled_date',
+  completedDate: 'completed_date',
+  status: 'status',
+  notes: 'notes',
+} as const;
+
 export function updateAssessment(
   db: Db,
   id: string,
@@ -143,19 +152,7 @@ export function updateAssessment(
     notes?: string | null;
   },
 ): boolean {
-  const row = db.prepare('SELECT * FROM assessments WHERE id = ?').get(id) as AssessmentRow | undefined;
-  if (!row) return false;
-  db.prepare(
-    `UPDATE assessments SET label = ?, scheduled_date = ?, completed_date = ?, status = ?, notes = ? WHERE id = ?`,
-  ).run(
-    fields.label !== undefined ? fields.label : row.label,
-    fields.scheduledDate !== undefined ? fields.scheduledDate : row.scheduled_date,
-    fields.completedDate !== undefined ? fields.completedDate : row.completed_date,
-    fields.status !== undefined ? fields.status : row.status,
-    fields.notes !== undefined ? fields.notes : row.notes,
-    id,
-  );
-  return true;
+  return updateById(db, 'assessments', id, ASSESSMENT_COLUMNS, fields);
 }
 
 export function deleteAssessment(db: Db, id: string): boolean {

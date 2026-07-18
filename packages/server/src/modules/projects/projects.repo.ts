@@ -1,5 +1,15 @@
 import type { Project } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
+import { updateById } from '../../infra/sql.js';
+
+const PROJECT_COLUMNS = {
+  name: 'name',
+  projectType: 'project_type',
+  pmApproach: 'pm_approach',
+  status: 'status',
+  watchGroupIds: 'watch_group_ids',
+  updatedAt: 'updated_at',
+} as const;
 
 interface ProjectRow {
   id: string;
@@ -63,20 +73,12 @@ export function updateProject(
   },
   updatedAt: string,
 ): boolean {
-  const current = getProject(db, id);
-  if (!current) return false;
-  db.prepare(
-    `UPDATE projects SET name = ?, project_type = ?, pm_approach = ?, status = ?, watch_group_ids = ?, updated_at = ? WHERE id = ?`,
-  ).run(
-    fields.name ?? current.name,
-    fields.projectType !== undefined ? fields.projectType : current.projectType,
-    fields.pmApproach !== undefined ? fields.pmApproach : current.pmApproach,
-    fields.status ?? current.status,
-    JSON.stringify(fields.watchGroupIds ?? current.watchGroupIds),
+  return updateById(db, 'projects', id, PROJECT_COLUMNS, {
+    ...fields,
+    // JSON-encode the watch list only when it's being changed.
+    watchGroupIds: fields.watchGroupIds !== undefined ? JSON.stringify(fields.watchGroupIds) : undefined,
     updatedAt,
-    id,
-  );
-  return true;
+  });
 }
 
 export function deleteProject(db: Db, id: string): boolean {

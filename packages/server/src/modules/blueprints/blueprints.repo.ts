@@ -1,5 +1,6 @@
 import type { BlueprintElement } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
+import { updateById } from '../../infra/sql.js';
 
 export interface BlueprintRow {
   id: string;
@@ -46,15 +47,13 @@ export function updateBlueprint(
   fields: { name?: string; notes?: string | null },
   updatedAt: string,
 ): boolean {
-  const current = getBlueprintRow(db, id);
-  if (!current) return false;
-  db.prepare('UPDATE blueprints SET name = ?, notes = ?, updated_at = ? WHERE id = ?').run(
-    fields.name ?? current.name,
-    fields.notes !== undefined ? fields.notes : current.notes,
-    updatedAt,
+  return updateById(
+    db,
+    'blueprints',
     id,
+    { name: 'name', notes: 'notes', updatedAt: 'updated_at' },
+    { ...fields, updatedAt },
   );
-  return true;
 }
 
 export function deleteBlueprint(db: Db, id: string): boolean {

@@ -1,4 +1,15 @@
 import type { Db } from '../../infra/db.js';
+import { nextPosition, updateById } from '../../infra/sql.js';
+
+const ROLE_COLUMNS = {
+  roleName: 'role_name',
+  personName: 'person_name',
+  roleDefinition: 'role_definition',
+  support: 'support',
+  influence: 'influence',
+  activationTactics: 'activation_tactics',
+  position: 'position',
+} as const;
 
 export interface RoleRow {
   id: string;
@@ -24,10 +35,7 @@ export function getRoleRow(db: Db, id: string): RoleRow | null {
 }
 
 export function nextRolePosition(db: Db, projectId: string, roster: string): number {
-  const row = db
-    .prepare('SELECT COALESCE(MAX(position) + 1, 0) AS pos FROM roles WHERE project_id = ? AND roster = ?')
-    .get(projectId, roster) as { pos: number };
-  return row.pos;
+  return nextPosition(db, 'roles', { project_id: projectId, roster });
 }
 
 export function insertRole(
@@ -75,21 +83,7 @@ export function updateRole(
     position?: number;
   },
 ): boolean {
-  const current = getRoleRow(db, id);
-  if (!current) return false;
-  db.prepare(
-    `UPDATE roles SET role_name = ?, person_name = ?, role_definition = ?, support = ?, influence = ?, activation_tactics = ?, position = ? WHERE id = ?`,
-  ).run(
-    fields.roleName !== undefined ? fields.roleName : current.role_name,
-    fields.personName !== undefined ? fields.personName : current.person_name,
-    fields.roleDefinition !== undefined ? fields.roleDefinition : current.role_definition,
-    fields.support !== undefined ? fields.support : current.support,
-    fields.influence !== undefined ? fields.influence : current.influence,
-    fields.activationTactics !== undefined ? fields.activationTactics : current.activation_tactics,
-    fields.position ?? current.position,
-    id,
-  );
-  return true;
+  return updateById(db, 'roles', id, ROLE_COLUMNS, fields);
 }
 
 export function deleteRole(db: Db, id: string): boolean {

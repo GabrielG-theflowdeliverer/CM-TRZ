@@ -1,5 +1,6 @@
 import type { Activity } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
+import { nextPosition as sqlNextPosition, updateById } from '../../infra/sql.js';
 
 interface ActivityRow {
   id: string;
@@ -128,11 +129,21 @@ export function getActivity(db: Db, id: string): Activity | null {
   return row ? toActivity(db, row) : null;
 }
 
+const ACTIVITY_COLUMNS = {
+  name: 'name',
+  methodMechanism: 'method_mechanism',
+  rolesRequiredText: 'roles_required_text',
+  responsible: 'responsible',
+  startDate: 'start_date',
+  finishDate: 'finish_date',
+  status: 'status',
+  resultFeedback: 'result_feedback',
+  overall: 'overall',
+  position: 'position',
+} as const;
+
 export function nextPosition(db: Db, projectId: string): number {
-  const row = db
-    .prepare('SELECT COALESCE(MAX(position) + 1, 0) AS pos FROM activities WHERE project_id = ?')
-    .get(projectId) as { pos: number };
-  return row.pos;
+  return sqlNextPosition(db, 'activities', { project_id: projectId });
 }
 
 export function insertActivity(
@@ -187,24 +198,7 @@ export function updateActivity(
     position?: number;
   },
 ): boolean {
-  const current = db.prepare('SELECT * FROM activities WHERE id = ?').get(id) as ActivityRow | undefined;
-  if (!current) return false;
-  db.prepare(
-    `UPDATE activities SET name = ?, method_mechanism = ?, roles_required_text = ?, responsible = ?, start_date = ?, finish_date = ?, status = ?, result_feedback = ?, overall = ?, position = ? WHERE id = ?`,
-  ).run(
-    fields.name !== undefined ? fields.name : current.name,
-    fields.methodMechanism !== undefined ? fields.methodMechanism : current.method_mechanism,
-    fields.rolesRequiredText !== undefined ? fields.rolesRequiredText : current.roles_required_text,
-    fields.responsible !== undefined ? fields.responsible : current.responsible,
-    fields.startDate !== undefined ? fields.startDate : current.start_date,
-    fields.finishDate !== undefined ? fields.finishDate : current.finish_date,
-    fields.status !== undefined ? fields.status : current.status,
-    fields.resultFeedback !== undefined ? fields.resultFeedback : current.result_feedback,
-    fields.overall !== undefined ? (fields.overall ? 1 : 0) : current.overall,
-    fields.position ?? current.position,
-    id,
-  );
-  return true;
+  return updateById(db, 'activities', id, ACTIVITY_COLUMNS, fields);
 }
 
 export function deleteActivity(db: Db, id: string): boolean {

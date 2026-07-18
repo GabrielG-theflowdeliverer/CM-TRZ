@@ -1,5 +1,14 @@
 import type { Db } from '../../infra/db.js';
+import { nextPosition, updateById } from '../../infra/sql.js';
 
+const PLAN_COLUMNS = {
+  name: 'name',
+  planType: 'plan_type',
+  sponsor: 'sponsor',
+  practitioner: 'practitioner',
+  lastUpdated: 'last_updated',
+  position: 'position',
+} as const;
 
 export interface PlanRow {
   id: string;
@@ -24,10 +33,7 @@ export function getPlanRow(db: Db, id: string): PlanRow | null {
 }
 
 export function nextPlanPosition(db: Db, projectId: string, kind: string): number {
-  const row = db
-    .prepare('SELECT COALESCE(MAX(position) + 1, 0) AS pos FROM plans WHERE project_id = ? AND kind = ?')
-    .get(projectId, kind) as { pos: number };
-  return row.pos;
+  return nextPosition(db, 'plans', { project_id: projectId, kind });
 }
 
 export function insertPlan(
@@ -61,20 +67,7 @@ export function updatePlan(
     position?: number;
   },
 ): boolean {
-  const current = getPlanRow(db, id);
-  if (!current) return false;
-  db.prepare(
-    `UPDATE plans SET name = ?, plan_type = ?, sponsor = ?, practitioner = ?, last_updated = ?, position = ? WHERE id = ?`,
-  ).run(
-    fields.name ?? current.name,
-    fields.planType !== undefined ? fields.planType : current.plan_type,
-    fields.sponsor !== undefined ? fields.sponsor : current.sponsor,
-    fields.practitioner !== undefined ? fields.practitioner : current.practitioner,
-    fields.lastUpdated !== undefined ? fields.lastUpdated : current.last_updated,
-    fields.position ?? current.position,
-    id,
-  );
-  return true;
+  return updateById(db, 'plans', id, PLAN_COLUMNS, fields);
 }
 
 export function deletePlan(db: Db, id: string): boolean {

@@ -1,7 +1,16 @@
 import { DOC_FIELDS, type DocKey, type ResistanceItem } from '@cmt/domain';
 import { newId, type Db } from '../../infra/db.js';
 import { HttpError, notFound } from '../../infra/http.js';
+import { nextPosition, updateById } from '../../infra/sql.js';
 import { getProject } from '../projects/projects.service.js';
+
+const RESISTANCE_COLUMNS = {
+  groupId: 'group_id',
+  groupLabel: 'group_label',
+  anticipatedResistance: 'anticipated_resistance',
+  specialTactics: 'special_tactics',
+  position: 'position',
+} as const;
 
 export function getDoc(db: Db, projectId: string, docKey: DocKey): Record<string, string | null> {
   getProject(db, projectId);
@@ -82,16 +91,14 @@ export function createResistance(
     if (!group || group.project_id !== projectId) throw new HttpError(400, 'groupId does not belong to this project');
   }
   const id = newId();
-  const pos = db
-    .prepare('SELECT COALESCE(MAX(position) + 1, 0) AS pos FROM resistance_items WHERE project_id = ?')
-    .get(projectId) as { pos: number };
+  const pos = nextPosition(db, 'resistance_items', { project_id: projectId });
   db.prepare(
     `INSERT INTO resistance_items (id, project_id, position, group_id, group_label, anticipated_resistance, special_tactics)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     projectId,
-    pos.pos,
+    pos,
     input.groupId ?? null,
     input.groupLabel ?? null,
     input.anticipatedResistance ?? null,
@@ -105,18 +112,11 @@ export function updateResistance(
   id: string,
   fields: Partial<Omit<ResistanceItem, 'id' | 'projectId'>>,
 ): ResistanceItem {
-  const current = db.prepare('SELECT * FROM resistance_items WHERE id = ?').get(id) as ResistanceRow | undefined;
-  if (!current) notFound('Resistance item');
-  db.prepare(
-    `UPDATE resistance_items SET group_id = ?, group_label = ?, anticipated_resistance = ?, special_tactics = ?, position = ? WHERE id = ?`,
-  ).run(
-    fields.groupId !== undefined ? fields.groupId : current.group_id,
-    fields.groupLabel !== undefined ? fields.groupLabel : current.group_label,
-    fields.anticipatedResistance !== undefined ? fields.anticipatedResistance : current.anticipated_resistance,
-    fields.specialTactics !== undefined ? fields.specialTactics : current.special_tactics,
-    fields.position ?? current.position,
-    id,
-  );
+  if (
+    !updateById(db, 'resistance_items', id, RESISTANCE_COLUMNS, fields as Record<string, unknown>)
+  ) {
+    notFound('Resistance item');
+  }
   return toItem(db.prepare('SELECT * FROM resistance_items WHERE id = ?').get(id) as ResistanceRow);
 }
 

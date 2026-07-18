@@ -1,5 +1,15 @@
 import type { GroupAspect } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
+import { nextPosition, updateById } from '../../infra/sql.js';
+
+const GROUP_COLUMNS = {
+  name: 'name',
+  numPeople: 'num_people',
+  adoptionUsageDefinition: 'adoption_usage_definition',
+  uniqueConsiderations: 'unique_considerations',
+  tags: 'tags',
+  position: 'position',
+} as const;
 
 export interface GroupRow {
   id: string;
@@ -31,10 +41,7 @@ export function getGroupRow(db: Db, id: string): GroupRow | null {
 }
 
 export function nextGroupPosition(db: Db, projectId: string): number {
-  const row = db
-    .prepare('SELECT COALESCE(MAX(position) + 1, 0) AS pos FROM impacted_groups WHERE project_id = ?')
-    .get(projectId) as { pos: number };
-  return row.pos;
+  return nextPosition(db, 'impacted_groups', { project_id: projectId });
 }
 
 export function insertGroup(
@@ -77,20 +84,10 @@ export function updateGroup(
     position?: number;
   },
 ): boolean {
-  const current = getGroupRow(db, id);
-  if (!current) return false;
-  db.prepare(
-    `UPDATE impacted_groups SET name = ?, num_people = ?, adoption_usage_definition = ?, unique_considerations = ?, tags = ?, position = ? WHERE id = ?`,
-  ).run(
-    fields.name ?? current.name,
-    fields.numPeople !== undefined ? fields.numPeople : current.num_people,
-    fields.adoptionUsageDefinition !== undefined ? fields.adoptionUsageDefinition : current.adoption_usage_definition,
-    fields.uniqueConsiderations !== undefined ? fields.uniqueConsiderations : current.unique_considerations,
-    fields.tags !== undefined ? JSON.stringify(fields.tags) : current.tags,
-    fields.position ?? current.position,
-    id,
-  );
-  return true;
+  return updateById(db, 'impacted_groups', id, GROUP_COLUMNS, {
+    ...fields,
+    tags: fields.tags !== undefined ? JSON.stringify(fields.tags) : undefined,
+  });
 }
 
 export function deleteGroup(db: Db, id: string): boolean {

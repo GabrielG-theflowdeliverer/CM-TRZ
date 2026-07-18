@@ -1,6 +1,7 @@
 import { worstCmPerfStatus, type CmPerfItem, type CmPerfReport } from '@cmt/domain';
 import { newId, nowIso, type Db } from '../../infra/db.js';
 import { notFound } from '../../infra/http.js';
+import { nextPosition, updateById } from '../../infra/sql.js';
 import { getProject } from '../projects/projects.service.js';
 
 /**
@@ -27,10 +28,7 @@ function reconcileItems(db: Db, reportId: string, projectId: string): void {
   ];
   const currentRefs = new Set(current.map((c) => `${c.kind}:${c.id}`));
 
-  const maxPos = db
-    .prepare('SELECT COALESCE(MAX(position) + 1, 0) AS pos FROM cm_perf_items WHERE report_id = ?')
-    .get(reportId) as { pos: number };
-  let position = maxPos.pos;
+  let position = nextPosition(db, 'cm_perf_items', { report_id: reportId });
 
   const insert = db.prepare(
     `INSERT INTO cm_perf_items (id, report_id, position, kind, ref_id, label) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -147,14 +145,9 @@ export function updateReport(
   id: string,
   fields: { name?: string; date?: string | null; status?: string | null },
 ): CmPerfReport {
-  const current = db.prepare('SELECT * FROM cm_perf_reports WHERE id = ?').get(id) as ReportRow | undefined;
-  if (!current) notFound('CM performance report');
-  db.prepare('UPDATE cm_perf_reports SET name = ?, date = ?, status = ? WHERE id = ?').run(
-    fields.name ?? current.name,
-    fields.date !== undefined ? fields.date : current.date,
-    fields.status !== undefined ? fields.status : current.status,
-    id,
-  );
+  if (!updateById(db, 'cm_perf_reports', id, { name: 'name', date: 'date', status: 'status' }, fields)) {
+    notFound('CM performance report');
+  }
   return getReport(db, id);
 }
 
@@ -169,13 +162,11 @@ export function updateItem(
   itemId: string,
   fields: { status?: string | null; description?: string | null },
 ): CmPerfReport {
-  const current = db.prepare('SELECT * FROM cm_perf_items WHERE id = ?').get(itemId) as ItemRow | undefined;
+  const current = db.prepare('SELECT report_id FROM cm_perf_items WHERE id = ?').get(itemId) as
+    | { report_id: string }
+    | undefined;
   if (!current) notFound('CM performance item');
-  db.prepare('UPDATE cm_perf_items SET status = ?, description = ? WHERE id = ?').run(
-    fields.status !== undefined ? fields.status : current.status,
-    fields.description !== undefined ? fields.description : current.description,
-    itemId,
-  );
+  updateById(db, 'cm_perf_items', itemId, { status: 'status', description: 'description' }, fields);
   return getReport(db, current.report_id);
 }
 
