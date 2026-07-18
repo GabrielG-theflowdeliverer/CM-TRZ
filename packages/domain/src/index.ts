@@ -10,6 +10,7 @@ export * from './content/aspectsOfChange.js';
 export * from './content/adkar.js';
 export * from './content/competencyItems.js';
 export * from './content/helpTexts.js';
+export * from './content/surveyStructure.js';
 
 // Calculations (Excel-parity business logic)
 export * from './calc/pct.js';
