@@ -13,7 +13,7 @@ export function useCmPerfReports(projectId: string) {
 
 export function useCmPerfReportMutations(projectId: string) {
   const invalidateCaches = useInvalidateProjectCaches();
-  const invalidate = () => invalidateCaches(['cm-perf-reports', projectId], ['project-dashboard', projectId]);
+  const invalidate = () => invalidateCaches(['cm-perf-reports', projectId]);
   const create = useMutation({
     mutationFn: (reportName: string) =>
       api.post<CmPerfReport>(`/api/projects/${projectId}/cm-perf-reports`, {
@@ -39,7 +39,7 @@ export function useCmPerfReport(projectId: string, reportId: string) {
   });
   const refresh = (data?: CmPerfReport) => {
     if (data) queryClient.setQueryData(['cm-perf-reports', projectId, reportId], data);
-    invalidateCaches(['cm-perf-reports', projectId], ['project-dashboard', projectId]);
+    invalidateCaches(['cm-perf-reports', projectId]);
   };
   const updateReport = useMutation({
     mutationFn: (fields: Record<string, unknown>) =>
