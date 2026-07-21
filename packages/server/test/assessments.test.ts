@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { PCT_ITEM_KEYS, RISK_ITEM_KEYS } from '@cmt/domain';
+import { RISK_ITEM_KEYS } from '@cmt/domain';
 import { createTestApp, type TestContext } from './harness.js';
 
 let ctx: TestContext;
@@ -89,21 +89,21 @@ describe('assessment engine', () => {
     expect(body.computed.competency.interpretation).toBe('Fair to Poor');
   });
 
-  it('copyFromLatest pre-fills a new run from the previous one', async () => {
+  it('a new run always starts blank — the removed copyFromLatest flag does nothing', async () => {
+    // The pre-fill convenience was removed once surveys became the scoring
+    // source of truth (stale hand-entered data must not seed new runs). The
+    // schema strips the unknown key; this guards against it creeping back.
     const { body: first } = await request(ctx.app)
       .post(`/api/projects/${projectId}/assessments`)
       .send({ type: 'pct' })
       .expect(201);
-    const full: Record<string, number> = {};
-    for (const key of PCT_ITEM_KEYS) full[key] = 2;
-    await request(ctx.app).put(`/api/assessments/${first.id}/responses`).send(full).expect(200);
+    await request(ctx.app).put(`/api/assessments/${first.id}/responses`).send({ 'pct.success.1': 2 }).expect(200);
 
     const { body: second } = await request(ctx.app)
       .post(`/api/projects/${projectId}/assessments`)
       .send({ type: 'pct', copyFromLatest: true })
       .expect(201);
-    expect(second.responses['pct.change_management.10']).toBe(2);
-    expect(second.computed.pct.success).toBe(20);
+    expect(second.responses).toEqual({});
   });
 
   it('requires a subjectId for group-scoped runs', async () => {

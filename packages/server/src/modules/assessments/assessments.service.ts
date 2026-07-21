@@ -118,7 +118,6 @@ export function createAssessment(
     completedDate?: string | null;
     status?: string | null;
     notes?: string | null;
-    copyFromLatest?: boolean;
   },
 ): AssessmentWithComputed {
   getProject(db, projectId);
@@ -140,13 +139,6 @@ export function createAssessment(
     notes: input.notes ?? null,
     createdAt: nowIso(),
   });
-  if (input.copyFromLatest) {
-    const previous = repo
-      .listAssessments(db, projectId, { type: input.type, subjectKind: input.subjectKind })
-      .filter((a) => a.id !== id && a.subjectId === subjectId)
-      .at(-1);
-    if (previous) repo.upsertResponses(db, id, previous.responses);
-  }
   return getAssessment(db, id);
 }
 

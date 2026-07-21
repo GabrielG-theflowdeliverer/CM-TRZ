@@ -155,14 +155,14 @@ describe('ADKAR runs incl. Overall Change (C2)', () => {
     await request(ctx.app).put(`/api/groups/${group.id}/adkar`).send({ 'adkar.awareness': 5 }).expect(200);
     await request(ctx.app)
       .post(`/api/projects/${projectId}/assessments`)
-      .send({ type: 'adkar', subjectKind: 'group', subjectId: group.id, label: 'Follow-up', copyFromLatest: true })
+      .send({ type: 'adkar', subjectKind: 'group', subjectId: group.id, label: 'Follow-up' })
       .expect(201);
 
     const { body: all } = await request(ctx.app).get(`/api/projects/${projectId}/assessments?type=adkar`).expect(200);
     expect(all).toHaveLength(3);
     const groupRuns = all.filter((r: { subjectId: string | null }) => r.subjectId === group.id);
     expect(groupRuns).toHaveLength(2);
-    // copyFromLatest pre-filled the follow-up from the inline run.
-    expect(groupRuns.find((r: { label: string }) => r.label === 'Follow-up').responses['adkar.awareness']).toBe(5);
+    // A follow-up run starts blank (no pre-fill from earlier runs).
+    expect(groupRuns.find((r: { label: string }) => r.label === 'Follow-up').responses).toEqual({});
   });
 });
