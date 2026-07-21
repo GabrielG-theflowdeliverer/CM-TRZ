@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type AssessmentType, surveyStructure } from '@cmt/domain';
 import type { SurveyCampaign, SurveyCampaignSummary } from '@cmt/domain';
 import type { AssessmentDto, AssessmentSurveyView } from '../../lib/types';
+import { isShareView } from '../../lib/api';
 import { MultiSelect } from '../../ui/MultiSelect';
 import { useRoles } from '../roles/useRoles';
 import { useCampaign, useCampaigns, useCreateCampaign, useDeleteCampaign } from './useCampaigns';
@@ -16,6 +17,13 @@ import { useCampaign, useCampaigns, useCreateCampaign, useDeleteCampaign } from 
  * reports.
  */
 export function AssessmentSurveyPanel({ run, projectId }: { run: AssessmentDto; projectId: string }) {
+  // Hidden on the view-only share: campaign data (respondent links) is the
+  // practitioner's, and the share surface deliberately doesn't serve it.
+  if (isShareView()) return null;
+  return <PanelBody run={run} projectId={projectId} />;
+}
+
+function PanelBody({ run, projectId }: { run: AssessmentDto; projectId: string }) {
   const queryClient = useQueryClient();
   const { data: campaigns } = useCampaigns(projectId);
   const summary = campaigns?.find((c) => c.assessmentId === run.id);

@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import type { ProjectDashboardDto } from '../dashboard/ProjectDashboardView';
 
 export interface ShareState {
   token: string | null;
@@ -29,16 +28,5 @@ export function useDisableShare(projectId: string) {
   return useMutation({
     mutationFn: () => api.del(`/api/projects/${projectId}/share`),
     onSuccess: () => queryClient.setQueryData<ShareState>(['share', projectId], { token: null }),
-  });
-}
-
-/** Stakeholder-side: the read-only dashboard behind a share token. */
-export function useSharedDashboard(token: string) {
-  return useQuery({
-    queryKey: ['shared-dashboard', token],
-    queryFn: () => api.get<ProjectDashboardDto>(`/api/share/${token}`),
-    enabled: token !== '',
-    // A dead link is a 404, not a transient failure — don't retry.
-    retry: false,
   });
 }
