@@ -24,6 +24,7 @@ import {
   createSurveysRouter,
 } from './modules/surveys/surveys.router.js';
 import { createProjectShareRouter, createShareViewRouter } from './modules/share/share.router.js';
+import { createShareBrowseRouter } from './modules/share/share-browse.router.js';
 
 /** Composition root: wires every feature module onto the /api surface. */
 export function createApp(db: Db): Express {
@@ -82,8 +83,10 @@ export function createApp(db: Db): Express {
   // exposes nothing about the project beyond the single survey behind the token.
   app.use('/api/survey', createSurveyCaptureRouter(db));
 
-  // Public view-only share — token-scoped read-only dashboard projection,
-  // no mutation routes.
+  // Public view-only share — token-scoped, GET-only. The browse router mirrors
+  // the whole project API read-only (every page viewable); the view router
+  // keeps GET /api/share/:token as the dashboard/entry payload.
+  app.use('/api/share', createShareBrowseRouter(db));
   app.use('/api/share', createShareViewRouter(db));
 
   app.use(errorHandler);

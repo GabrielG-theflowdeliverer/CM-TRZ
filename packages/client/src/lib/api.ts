@@ -10,7 +10,29 @@ export class ApiError extends Error {
 /** Requests that hang longer than this are aborted so the UI can recover. */
 const DEFAULT_TIMEOUT_MS = 15_000;
 
+/**
+ * View-only share mode. When the SPA boots on /view/:token (see main.tsx), all
+ * feature code runs unchanged while every request is rerouted onto the
+ * token-scoped read-only mirror (/api/X -> /api/share/:token/X) and writes are
+ * refused before they leave the client (the server 403s them anyway — this
+ * just fails fast). Module-level because it's a whole-app mode fixed at boot
+ * from the URL, never toggled mid-session.
+ */
+let shareViewToken: string | null = null;
+
+export function setShareViewToken(token: string | null): void {
+  shareViewToken = token;
+}
+
+export function isShareView(): boolean {
+  return shareViewToken !== null;
+}
+
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
+  if (shareViewToken !== null) {
+    if (method !== 'GET') throw new ApiError(403, 'This link is view-only');
+    url = `/api/share/${shareViewToken}${url.slice('/api'.length)}`;
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
   let res: Response;

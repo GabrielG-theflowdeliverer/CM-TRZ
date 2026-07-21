@@ -4,7 +4,8 @@ import { api } from '../lib/api';
 import type { Project } from '../lib/types';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 
-const NAV_SECTIONS: Array<{ title: string; items: Array<{ to: string; label: string }> }> = [
+/** Sidebar structure, shared with the read-only share layout (which drops Settings). */
+export const NAV_SECTIONS: Array<{ title: string; items: Array<{ to: string; label: string }> }> = [
   {
     title: 'Project',
     items: [
