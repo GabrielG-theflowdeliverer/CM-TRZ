@@ -23,6 +23,7 @@ import {
   createSurveyCaptureRouter,
   createSurveysRouter,
 } from './modules/surveys/surveys.router.js';
+import { createProjectShareRouter, createShareViewRouter } from './modules/share/share.router.js';
 
 /** Composition root: wires every feature module onto the /api surface. */
 export function createApp(db: Db): Express {
@@ -50,6 +51,7 @@ export function createApp(db: Db): Express {
   app.use('/api/projects/:projectId/cm-perf-reports', createProjectCmPerfRouter(db));
   app.use('/api/projects/:projectId/dashboard', createProjectDashboardRouter(db));
   app.use('/api/projects/:projectId/surveys', createProjectSurveysRouter(db));
+  app.use('/api/projects/:projectId/share', createProjectShareRouter(db));
   app.use('/api/projects/:projectId/export', createProjectExportRouter(db));
   app.use('/api/projects/:projectId', createProjectTrackingRouter(db));
   app.use('/api/projects/:projectId', createProjectDocsRouter(db));
@@ -79,6 +81,10 @@ export function createApp(db: Db): Express {
   // Public survey capture — the only respondent-facing surface, token-scoped,
   // exposes nothing about the project beyond the single survey behind the token.
   app.use('/api/survey', createSurveyCaptureRouter(db));
+
+  // Public view-only share — token-scoped read-only dashboard projection,
+  // no mutation routes.
+  app.use('/api/share', createShareViewRouter(db));
 
   app.use(errorHandler);
   return app;

@@ -1,7 +1,8 @@
 # In-app Survey Facilitation — implementation plan & handoff
 
-**Status:** backend complete; respondent client done; **practitioner UI + view-only share remain.**
-**Branch:** `feat/survey-aggregation`.
+**Status: COMPLETE.** Backend + respondent client (PR #1), practitioner campaign UI (PR #2),
+campaign removal + view-only share (PR #5). Remaining hardening (rate-limiting, token expiry)
+stays deferred until public hosting — see §C.
 
 ## Goal
 

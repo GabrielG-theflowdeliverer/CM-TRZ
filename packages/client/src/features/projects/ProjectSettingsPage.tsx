@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import type { Project } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { Select, TextField } from '../../ui/controls';
+import { SharePanel } from '../share/SharePanel';
 
 export function ProjectSettingsPage() {
   const { projectId, project } = useProject();
@@ -79,6 +80,10 @@ export function ProjectSettingsPage() {
             </a>
           ))}
         </div>
+      </div>
+
+      <div className="mt-4">
+        <SharePanel projectId={projectId} />
       </div>
     </div>
   );

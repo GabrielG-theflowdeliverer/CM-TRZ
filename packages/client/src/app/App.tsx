@@ -24,6 +24,7 @@ import { CmPerformancePage, CmPerfReportPage } from '../features/tracking/CmPerf
 import { AdaptActionsPage } from '../features/tracking/AdaptActionsPage';
 import { ReferencePage } from '../features/reference/ReferencePage';
 import { SurveyPage } from '../features/surveys/SurveyPage';
+import { SharedDashboardPage } from '../features/share/SharedDashboardPage';
 
 export function App() {
   return (
@@ -31,6 +32,8 @@ export function App() {
       <Route path="/" element={<HomePage />} />
       {/* Public, chrome-less respondent survey — outside the project shell. */}
       <Route path="/s/:token" element={<SurveyPage />} />
+      {/* Public, chrome-less view-only dashboard behind a share token. */}
+      <Route path="/view/:token" element={<SharedDashboardPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/projects/:projectId" element={<ProjectLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
