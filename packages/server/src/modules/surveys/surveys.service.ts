@@ -145,6 +145,16 @@ export function getAssessmentSurvey(db: Db, assessmentId: string): AssessmentSur
   };
 }
 
+/**
+ * Remove a campaign and its recipients/responses. The assessment's roll-up
+ * disappears with it, so its scoring falls back to the practitioner's
+ * hand-entered responses (which were never overwritten), and a new campaign
+ * may then be launched — e.g. a quarterly re-run.
+ */
+export function deleteCampaign(db: Db, id: string): void {
+  if (!repo.deleteCampaign(db, id)) notFound('Campaign');
+}
+
 export function listCampaigns(db: Db, projectId: string): SurveyCampaignSummary[] {
   return repo.listCampaignRows(db, projectId).map((c) => {
     const counts = repo.recipientCounts(db, c.id);

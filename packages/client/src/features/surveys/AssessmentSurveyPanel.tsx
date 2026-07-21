@@ -5,7 +5,7 @@ import type { SurveyCampaign, SurveyCampaignSummary } from '@cmt/domain';
 import type { AssessmentDto, AssessmentSurveyView } from '../../lib/types';
 import { MultiSelect } from '../../ui/MultiSelect';
 import { useRoles } from '../roles/useRoles';
-import { useCampaign, useCampaigns, useCreateCampaign } from './useCampaigns';
+import { useCampaign, useCampaigns, useCreateCampaign, useDeleteCampaign } from './useCampaigns';
 
 /**
  * Practitioner-side survey facilitation for one assessment run: launch a
@@ -43,7 +43,9 @@ export function AssessmentSurveyPanel({ run, projectId }: { run: AssessmentDto; 
       </div>
 
       {!summary && <LaunchControl assessmentId={run.id} projectId={projectId} />}
-      {campaign && summary && <RecipientList campaign={campaign} summary={summary} />}
+      {campaign && summary && (
+        <RecipientList campaign={campaign} summary={summary} projectId={projectId} assessmentId={run.id} />
+      )}
       {run.survey && <Results survey={run.survey} type={run.type} />}
     </section>
   );
@@ -83,14 +85,49 @@ function LaunchControl({ assessmentId, projectId }: { assessmentId: string; proj
   );
 }
 
-function RecipientList({ campaign, summary }: { campaign: SurveyCampaign; summary: SurveyCampaignSummary }) {
+function RecipientList({
+  campaign,
+  summary,
+  projectId,
+  assessmentId,
+}: {
+  campaign: SurveyCampaign;
+  summary: SurveyCampaignSummary;
+  projectId: string;
+  assessmentId: string;
+}) {
+  const remove = useDeleteCampaign(projectId, assessmentId);
+  const onRemove = () => {
+    // Destructive: submitted responses go with the campaign; scoring reverts
+    // to the hand-entered values. Make the practitioner say so explicitly.
+    if (
+      window.confirm(
+        `Remove this campaign? ${summary.submittedCount} submitted response${
+          summary.submittedCount === 1 ? '' : 's'
+        } will be deleted and scoring reverts to the hand-entered values. A new campaign can then be launched.`,
+      )
+    ) {
+      remove.mutate(campaign.id);
+    }
+  };
+
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h4 className="text-sm font-semibold">Recipients</h4>
-        <span className="text-xs font-medium text-slate-500">
-          {summary.submittedCount}/{summary.recipientCount} submitted
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-slate-500">
+            {summary.submittedCount}/{summary.recipientCount} submitted
+          </span>
+          <button
+            type="button"
+            className="cmt-btn-secondary text-xs"
+            disabled={remove.isPending}
+            onClick={onRemove}
+          >
+            {remove.isPending ? 'Removing…' : 'Remove campaign'}
+          </button>
+        </div>
       </div>
       <table className="w-full">
         <tbody>

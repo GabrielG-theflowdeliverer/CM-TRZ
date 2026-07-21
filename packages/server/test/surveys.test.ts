@@ -233,6 +233,37 @@ describe('assessment survey roll-up', () => {
     expect(lee.responses[KEY0]).toBe(2);
   });
 
+  it('deleting a campaign reverts scoring to hand-entered responses and frees a re-run', async () => {
+    const role = await addRole(projectId, 'J. Smith');
+    await request(ctx.app).put(`/api/assessments/${assessmentId}/responses`).send(answers(5)).expect(200);
+
+    const { body: campaign } = await request(ctx.app)
+      .post(`/api/projects/${projectId}/surveys`)
+      .send({ assessmentId, roleIds: [role] })
+      .expect(201);
+    await request(ctx.app).put(`/api/survey/${campaign.recipients[0].token}`).send(answers(2)).expect(200);
+
+    // Survey supersedes the hand-entered 5s...
+    const { body: during } = await request(ctx.app).get(`/api/assessments/${assessmentId}`).expect(200);
+    expect(during.computed.competency.total).toBe(2 * LEN);
+
+    await request(ctx.app).delete(`/api/surveys/${campaign.id}`).expect(204);
+
+    // ...and they come back untouched once the campaign is removed.
+    const { body: after } = await request(ctx.app).get(`/api/assessments/${assessmentId}`).expect(200);
+    expect(after.computed.competency.total).toBe(5 * LEN);
+    expect(after.survey).toBeUndefined();
+
+    // The one-campaign-per-assessment slot is free again (quarterly re-run).
+    await request(ctx.app)
+      .post(`/api/projects/${projectId}/surveys`)
+      .send({ assessmentId, roleIds: [role] })
+      .expect(201);
+
+    // Deleting an unknown campaign 404s.
+    await request(ctx.app).delete(`/api/surveys/${campaign.id}`).expect(404);
+  });
+
   it('falls back to hand-entered responses when nobody has submitted yet', async () => {
     await request(ctx.app).put(`/api/assessments/${assessmentId}/responses`).send(answers(5)).expect(200);
     const { body: a } = await request(ctx.app).get(`/api/assessments/${assessmentId}`).expect(200);
