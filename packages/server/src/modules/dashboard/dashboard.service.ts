@@ -5,11 +5,16 @@ import {
   buildPortfolioSummary,
   buildProjectHealth,
   degreeOfImpactHistogram,
+  monthRange,
+  projectWindow,
+  saturationBand,
+  saturationLoad,
   type ActivityStatus,
   type BarrierPoint,
   type CmPerfStatus,
   type ProjectHealth,
   type ProjectHealthInput,
+  type SaturationBand,
 } from '@cmt/domain';
 import { today as todayIso, type Db } from '../../infra/db.js';
 import * as projects from '../projects/projects.service.js';
@@ -17,6 +22,8 @@ import * as assessments from '../assessments/assessments.service.js';
 import * as impact from '../impact/impact.service.js';
 import * as roadmap from '../roadmap/roadmap.service.js';
 import * as cmPerf from '../cm-perf/cm-perf.service.js';
+import * as activities from '../activities/activities.service.js';
+import * as orgGroups from '../org-groups/org-groups.service.js';
 
 export interface DashboardPayload {
   summary: ReturnType<typeof buildPortfolioSummary>;
@@ -50,6 +57,70 @@ export interface ProjectDashboardPayload {
     riskQuadrant: string | null;
   }>;
   latestCmPerf: { id: string; name: string; date: string | null; worstStatus: string | null } | null;
+}
+
+export interface SaturationCell {
+  score: number;
+  band: SaturationBand;
+  contributions: Array<{ projectId: string; projectName: string; load: number }>;
+}
+
+export interface SaturationPayload {
+  months: string[];
+  rows: Array<{ orgGroupId: string; orgGroupName: string; cells: SaturationCell[] }>;
+  /** Project groups in active projects not linked to any org group — coverage gap. */
+  unlinkedGroupCount: number;
+}
+
+/**
+ * Change-saturation heatmap: per org group per month, the summed load from
+ * every non-completed project whose linked groups it represents. Derived on
+ * read from roadmap windows + degree of impact (see domain/calc/saturation) —
+ * nothing stored. Unlinked project groups contribute nothing but are counted,
+ * so gaps in coverage are visible rather than silent.
+ */
+export function getSaturation(db: Db, from: string, to: string): SaturationPayload {
+  const months = monthRange(from, to);
+  const groups = orgGroups.listOrgGroups(db);
+  const active = projects.listProjects(db).filter((p) => p.status !== 'Completed');
+
+  let unlinkedGroupCount = 0;
+  // orgGroupId -> per-month contributions.
+  const loads = new Map<string, Array<Array<{ projectId: string; projectName: string; load: number }>>>();
+  for (const g of groups) loads.set(g.id, months.map(() => []));
+
+  for (const project of active) {
+    const rm = roadmap.getRoadmap(db, project.id);
+    const window = projectWindow(
+      rm,
+      activities.listActivities(db, project.id).map((a) => ({ startDate: a.startDate, finishDate: a.finishDate })),
+    );
+    for (const group of impact.listGroups(db, project.id)) {
+      if (group.orgGroupId === null) {
+        unlinkedGroupCount += 1;
+        continue;
+      }
+      const perMonth = loads.get(group.orgGroupId);
+      if (!perMonth) continue; // linked org group no longer exists
+      months.forEach((bucket, i) => {
+        const load = saturationLoad(group.computed.degreeOfImpact, window, bucket, rm.goliveDate);
+        if (load > 0) perMonth[i]!.push({ projectId: project.id, projectName: project.name, load });
+      });
+    }
+  }
+
+  return {
+    months,
+    rows: groups.map((g) => ({
+      orgGroupId: g.id,
+      orgGroupName: g.name,
+      cells: loads.get(g.id)!.map((contributions) => {
+        const score = contributions.reduce((sum, c) => sum + c.load, 0);
+        return { score, band: saturationBand(score), contributions };
+      }),
+    })),
+    unlinkedGroupCount,
+  };
 }
 
 /** Per-project dashboard (official Proxima's project landing page). */

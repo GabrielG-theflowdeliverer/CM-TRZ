@@ -22,7 +22,20 @@ export const groupCreateSchema = z.object({
 
 export const groupUpdateSchema = groupCreateSchema.partial().extend({
   position: z.number().int().min(0).optional(),
+  /** Link to the cross-project org group this project group represents. */
+  orgGroupId: z.string().nullable().optional(),
 });
+
+/** A real-world group that projects impact — the rows of the saturation heatmap. */
+export const orgGroupCreateSchema = z.object({
+  name: z.string().min(1).max(300),
+});
+
+export interface OrgGroup {
+  id: string;
+  name: string;
+  createdAt: string;
+}
 
 export const groupAspectsUpsertSchema = z.array(groupAspectSchema).max(ASPECT_KEYS.length);
 
@@ -42,6 +55,7 @@ export interface ImpactedGroup {
   adoptionUsageDefinition: string | null;
   uniqueConsiderations: string | null;
   tags: string[];
+  orgGroupId: string | null;
   aspects: GroupAspect[];
   /** Latest ADKAR run scores for the group (managed via the assessments engine). */
   adkar: Record<string, number | null>;

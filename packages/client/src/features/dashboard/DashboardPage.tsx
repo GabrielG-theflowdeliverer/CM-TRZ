@@ -4,6 +4,7 @@ import { ADKAR_ELEMENTS, ADKAR_LABELS, PCT_ASPECT_KEYS, PCT_ASPECT_LABELS } from
 import { api } from '../../lib/api';
 import type { DashboardDto, ProjectHealthDto } from '../../lib/types';
 import { BandChip, RiskBadge } from '../../ui/scores';
+import { SaturationHeatmap } from './SaturationHeatmap';
 
 function Stat(props: { label: string; value: number; alert?: boolean }) {
   return (
@@ -154,6 +155,10 @@ export function DashboardPage() {
             <Stat label="High-risk projects" value={data.summary.highRiskCount} alert />
             <Stat label="Overdue activities" value={data.summary.overdueActivities} alert />
             <Stat label="Checks due in 14 days" value={data.summary.checksDueSoon} />
+          </div>
+
+          <div className="mb-6">
+            <SaturationHeatmap />
           </div>
 
           {data.projects.length === 0 ? (
