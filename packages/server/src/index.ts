@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { openDb } from './infra/db.js';
+import { backupDb } from './infra/backup.js';
 import { createApp } from './app.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -12,6 +13,20 @@ const dbFile = process.env.CMT_DB_FILE ?? path.join(here, '..', 'data', 'proxima
 const port = Number(process.env.CMT_PORT ?? 3001);
 
 const db = openDb(dbFile);
+
+// Snapshot the previous session's data on every launch. A failed backup must
+// never block using the app, but it must be loud — silent backup rot is how
+// data gets lost.
+if (dbFile !== ':memory:') {
+  const backupDir = process.env.CMT_BACKUP_DIR ?? path.join(path.dirname(dbFile), 'backups');
+  try {
+    const dest = await backupDb(db, backupDir);
+    console.log(`Startup backup verified: ${dest}`);
+  } catch (err) {
+    console.error('STARTUP BACKUP FAILED — the database is running without a fresh snapshot:', err);
+  }
+}
+
 const app = createApp(db);
 
 // In production, serve the built client alongside the API.
