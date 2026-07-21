@@ -43,12 +43,11 @@ function AdkarSection({ projectId, runs, groups }: { projectId: string; runs: As
   const invalidate = useInvalidateAssessments(projectId);
   const [target, setTarget] = useState(OVERALL);
   const create = useMutation({
-    mutationFn: (input: { copyFromLatest?: boolean }) =>
+    mutationFn: () =>
       api.post<AssessmentDto>(`/api/projects/${projectId}/assessments`, {
         type: 'adkar',
         subjectKind: target === OVERALL ? 'project' : 'group',
         subjectId: target === OVERALL ? null : target,
-        copyFromLatest: input.copyFromLatest,
       }),
     onSuccess: () => invalidate(),
   });
@@ -73,12 +72,7 @@ function AdkarSection({ projectId, runs, groups }: { projectId: string; runs: As
               </option>
             ))}
           </select>
-          {visible.length > 0 && (
-            <button className="cmt-btn-secondary" onClick={() => create.mutate({ copyFromLatest: true })}>
-              New run (copy latest)
-            </button>
-          )}
-          <button className="cmt-btn" onClick={() => create.mutate({})}>
+          <button className="cmt-btn" onClick={() => create.mutate()}>
             New run
           </button>
         </div>
@@ -175,11 +169,10 @@ export function AssessmentsHubPage() {
   const invalidate = useInvalidateAssessments(projectId);
 
   const createRun = useMutation({
-    mutationFn: (input: { type: AssessmentType; copyFromLatest?: boolean }) =>
+    mutationFn: (input: { type: AssessmentType }) =>
       api.post<AssessmentDto>(`/api/projects/${projectId}/assessments`, {
         type: input.type,
         subjectKind: input.type.endsWith('competency') ? 'person' : 'project',
-        copyFromLatest: input.copyFromLatest,
       }),
     onSuccess: () => invalidate(),
   });
@@ -243,19 +236,9 @@ export function AssessmentsHubPage() {
           <section key={type} className="cmt-card">
             <div className="mb-1 flex items-center justify-between">
               <h3 className="font-semibold">{ASSESSMENT_TYPE_LABELS[type]}</h3>
-              <div className="flex gap-1.5">
-                {typeRuns.length > 0 && (
-                  <button
-                    className="cmt-btn-secondary"
-                    onClick={() => createRun.mutate({ type, copyFromLatest: true })}
-                  >
-                    New run (copy latest)
-                  </button>
-                )}
-                <button className="cmt-btn" onClick={() => createRun.mutate({ type })}>
-                  New run
-                </button>
-              </div>
+              <button className="cmt-btn" onClick={() => createRun.mutate({ type })}>
+                New run
+              </button>
             </div>
             <p className="mb-3 text-xs text-slate-500">{TYPE_HINTS[type]}</p>
             {typeRuns.length === 0 ? (

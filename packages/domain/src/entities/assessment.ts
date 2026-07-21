@@ -48,8 +48,6 @@ export const assessmentCreateSchema = z.object({
   completedDate: nullableDate.optional(),
   status: z.enum(ASSESSMENT_STATUSES).nullable().optional(),
   notes: nullableText.optional(),
-  /** Pre-fill responses from the latest run of the same type/subject. */
-  copyFromLatest: z.boolean().optional(),
 });
 
 export const assessmentUpdateSchema = z.object({

@@ -163,12 +163,11 @@ function GroupRunsTab(props: {
 }) {
   const invalidate = useInvalidateAssessments(props.projectId);
   const create = useMutation({
-    mutationFn: (input: { copyFromLatest?: boolean }) =>
+    mutationFn: () =>
       api.post<AssessmentDto>(`/api/projects/${props.projectId}/assessments`, {
         type: props.type,
         subjectKind: 'group',
         subjectId: props.groupId,
-        copyFromLatest: input.copyFromLatest,
       }),
     onSuccess: () => invalidate(),
   });
@@ -183,16 +182,9 @@ function GroupRunsTab(props: {
         <h3 className="font-semibold">
           {props.type === 'adkar' ? 'ADKAR assessment history for this group' : 'Risk assessments for this group'}
         </h3>
-        <div className="flex gap-1.5">
-          {props.runs.length > 0 && (
-            <button className="cmt-btn-secondary" onClick={() => create.mutate({ copyFromLatest: true })}>
-              Add (copy latest)
-            </button>
-          )}
-          <button className="cmt-btn" onClick={() => create.mutate({})}>
-            Add assessment
-          </button>
-        </div>
+        <button className="cmt-btn" onClick={() => create.mutate()}>
+          Add assessment
+        </button>
       </div>
       {props.runs.length === 0 ? (
         <p className="text-sm text-slate-400">No runs yet for this group.</p>
