@@ -56,3 +56,20 @@ export function useCreateCampaign(projectId: string, assessmentId: string) {
     },
   });
 }
+
+/**
+ * Remove a campaign (its recipients + submitted responses go with it). The
+ * assessment falls back to hand-entered scoring and a new campaign can then be
+ * launched — the quarterly re-run path.
+ */
+export function useDeleteCampaign(projectId: string, assessmentId: string) {
+  const queryClient = useQueryClient();
+  const invalidateCaches = useInvalidateProjectCaches();
+  return useMutation({
+    mutationFn: (campaignId: string) => api.del(`/api/surveys/${campaignId}`),
+    onSuccess: () => {
+      invalidateCaches(['campaigns', projectId]);
+      void queryClient.invalidateQueries({ queryKey: ['assessment', assessmentId] });
+    },
+  });
+}

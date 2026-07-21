@@ -111,6 +111,38 @@ describe('AssessmentSurveyPanel', () => {
     expect(screen.getAllByRole('button', { name: /copy link/i })).toHaveLength(2);
   });
 
+  it('removes the campaign only after explicit confirmation', async () => {
+    mockGet({
+      '/api/projects/p1/surveys': [
+        { id: 'c1', assessmentId: 'a1', createdAt: 'x', recipientCount: 1, submittedCount: 1 },
+      ],
+      '/api/surveys/c1': {
+        id: 'c1',
+        projectId: 'p1',
+        assessmentId: 'a1',
+        createdAt: 'x',
+        recipients: [
+          { id: 'rc1', roleId: 'r1', personName: 'Jane Doe', roleName: 'Sponsor', token: 'tok-1', submittedAt: 'y' },
+        ],
+      },
+    });
+    const del = vi.spyOn(api, 'del').mockResolvedValue(undefined);
+
+    renderWithClient(<AssessmentSurveyPanel run={run()} projectId="p1" />);
+    const removeButton = await screen.findByRole('button', { name: /remove campaign/i });
+
+    // Declining the confirm does nothing.
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await userEvent.click(removeButton);
+    expect(del).not.toHaveBeenCalled();
+
+    // Accepting deletes the campaign; the warning names the response count.
+    confirm.mockReturnValue(true);
+    await userEvent.click(removeButton);
+    await waitFor(() => expect(del).toHaveBeenCalledWith('/api/surveys/c1'));
+    expect(confirm.mock.calls[0]![0]).toMatch(/1 submitted response\b/);
+  });
+
   it('renders a per-respondent results matrix (name columns + section totals) only when a roll-up is present', async () => {
     const struct = surveyStructure('sponsor_competency');
     const allItems = struct.groups.flatMap((g) => g.items);
