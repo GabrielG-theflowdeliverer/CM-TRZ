@@ -9,6 +9,7 @@ const GROUP_COLUMNS = {
   uniqueConsiderations: 'unique_considerations',
   tags: 'tags',
   position: 'position',
+  orgGroupId: 'org_group_id',
 } as const;
 
 export interface GroupRow {
@@ -20,6 +21,7 @@ export interface GroupRow {
   adoption_usage_definition: string | null;
   unique_considerations: string | null;
   tags: string | null;
+  org_group_id: string | null;
 }
 
 export function parseTags(raw: string | null): string[] {
@@ -82,6 +84,7 @@ export function updateGroup(
     uniqueConsiderations?: string | null;
     tags?: string[];
     position?: number;
+    orgGroupId?: string | null;
   },
 ): boolean {
   return updateById(db, 'impacted_groups', id, GROUP_COLUMNS, {

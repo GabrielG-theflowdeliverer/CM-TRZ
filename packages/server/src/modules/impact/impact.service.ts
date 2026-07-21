@@ -7,8 +7,9 @@ import {
   type ImpactedGroup,
 } from '@cmt/domain';
 import { newId, type Db } from '../../infra/db.js';
-import { notFound } from '../../infra/http.js';
+import { HttpError, notFound } from '../../infra/http.js';
 import * as repo from './impact.repo.js';
+import { orgGroupExists } from '../org-groups/org-groups.repo.js';
 import * as assessments from '../assessments/assessments.service.js';
 import { getProject } from '../projects/projects.service.js';
 
@@ -42,6 +43,7 @@ function assembleGroup(db: Db, row: repo.GroupRow): GroupWithComputed {
     adoptionUsageDefinition: row.adoption_usage_definition,
     uniqueConsiderations: row.unique_considerations,
     tags: repo.parseTags(row.tags),
+    orgGroupId: row.org_group_id,
     aspects: fullAspects,
     adkar: Object.fromEntries(Object.entries(adkarScores)),
     adkarAssessmentId: latestAdkar?.id ?? null,
@@ -97,6 +99,10 @@ export function updateGroup(
   id: string,
   fields: Parameters<typeof repo.updateGroup>[2],
 ): GroupWithComputed {
+  // Friendly 400 instead of an FK constraint blowing up as a 500.
+  if (typeof fields.orgGroupId === 'string' && !orgGroupExists(db, fields.orgGroupId)) {
+    throw new HttpError(400, 'Unknown org group');
+  }
   if (!repo.updateGroup(db, id, fields)) notFound('Impacted group');
   return getGroup(db, id);
 }

@@ -12,6 +12,7 @@ import { api } from '../../lib/api';
 import type { AssessmentDto, GroupDto, ResistanceItem, RoleDto, Roadmap } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroupMutations } from './useGroups';
+import { OrgGroupLinker } from './OrgGroupLinker';
 import { useAssessments, useInvalidateAssessments } from '../assessments/useAssessments';
 import { BarrierBadge, HeatCell, RiskBadge, ScorePicker, adkarCellColor, impactCellColor } from '../../ui/scores';
 import { TextArea, TextField } from '../../ui/controls';
@@ -70,6 +71,9 @@ function OverviewTab(props: { projectId: string; group: GroupDto; onSaveTags: (t
             )
           }
         />
+        <div className="mt-3">
+          <OrgGroupLinker projectId={projectId} group={group} />
+        </div>
         <dl className="mt-3 space-y-1 text-sm">
           <div className="flex justify-between">
             <dt className="text-slate-500">Number in group</dt>
