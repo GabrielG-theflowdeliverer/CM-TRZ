@@ -43,6 +43,14 @@ export function getOutcomes(db: Db, projectId: string): OutcomesPayload {
   return { objectives, realization: overallRealization(allPcts) };
 }
 
+/** Each metric's kind + realization %, for the portfolio dashboard rollup. */
+export function listMetricRealizations(db: Db, projectId: string): Array<{ kind: 'adoption' | 'benefit'; pct: number | null }> {
+  return repo.listMetricsForProject(db, projectId).map((metric) => ({
+    kind: metric.kind,
+    pct: metricRealization(metric, repo.listMeasurements(db, metric.id)).pct,
+  }));
+}
+
 // ---- Objectives
 export function createObjective(db: Db, projectId: string, input: { level: string; statement: string; notes?: string | null }): Objective {
   getProject(db, projectId);

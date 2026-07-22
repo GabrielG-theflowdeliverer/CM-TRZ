@@ -95,10 +95,23 @@ export interface ProjectHealthDto {
   overdueCount: number;
   latestCmPerfStatus: string | null;
   nextMilestone: { date: string; label: string } | null;
+  outcomes: {
+    realization: number | null;
+    adoption: number | null;
+    benefit: number | null;
+    metricCount: number;
+    measuredCount: number;
+  };
 }
 
 export interface DashboardDto {
-  summary: { totalProjects: number; highRiskCount: number; overdueActivities: number; checksDueSoon: number };
+  summary: {
+    totalProjects: number;
+    highRiskCount: number;
+    overdueActivities: number;
+    checksDueSoon: number;
+    avgRealization: number | null;
+  };
   projects: ProjectHealthDto[];
   generatedAt: string;
 }

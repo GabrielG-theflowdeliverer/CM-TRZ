@@ -17,6 +17,31 @@ function Stat(props: { label: string; value: number; alert?: boolean }) {
   );
 }
 
+const pctText = (v: number | null) => (v == null ? '—' : `${Math.round(v)}%`);
+
+function PercentStat(props: { label: string; value: number | null }) {
+  return (
+    <div className="cmt-card flex-1 text-center">
+      <div className="text-3xl font-bold text-indigo-700">{props.value == null ? '—' : `${Math.round(props.value)}%`}</div>
+      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{props.label}</div>
+    </div>
+  );
+}
+
+/** Baseline→target realization bar reused on each portfolio project card. */
+function RealizationBar(props: { pct: number | null }) {
+  const width = props.pct == null ? 0 : Math.min(100, Math.max(0, props.pct));
+  const band = props.pct == null ? 'bg-slate-300' : props.pct >= 100 ? 'bg-green-500' : props.pct >= 50 ? 'bg-indigo-500' : 'bg-amber-500';
+  return (
+    <span className="inline-flex items-center gap-1.5 align-middle">
+      <span className="inline-block h-2 w-16 overflow-hidden rounded bg-slate-200">
+        <span className={`block h-full rounded ${band}`} style={{ width: `${width}%` }} />
+      </span>
+      <span className="tabular-nums">{props.pct == null ? '—' : `${Math.round(props.pct)}%`}</span>
+    </span>
+  );
+}
+
 function BarrierBar(props: { distribution: Record<string, number> }) {
   const entries = ADKAR_ELEMENTS.map((el) => ({
     label: ADKAR_LABELS[el],
@@ -116,6 +141,21 @@ function ProjectCard({ health }: { health: ProjectHealthDto }) {
           </dd>
         </div>
         <div>
+          <dt className="font-semibold text-slate-500">Benefit realized</dt>
+          <dd>
+            {health.outcomes.metricCount === 0 ? (
+              <span className="text-slate-400">No outcome metrics</span>
+            ) : (
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                <RealizationBar pct={health.outcomes.realization} />
+                <span className="text-[11px] text-slate-400">
+                  {`adoption ${pctText(health.outcomes.adoption)} · benefit ${pctText(health.outcomes.benefit)}`}
+                </span>
+              </span>
+            )}
+          </dd>
+        </div>
+        <div>
           <dt className="font-semibold text-slate-500">CM performance</dt>
           <dd>{health.latestCmPerfStatus ?? '—'}</dd>
         </div>
@@ -155,6 +195,7 @@ export function DashboardPage() {
             <Stat label="High-risk projects" value={data.summary.highRiskCount} alert />
             <Stat label="Overdue activities" value={data.summary.overdueActivities} alert />
             <Stat label="Checks due in 14 days" value={data.summary.checksDueSoon} />
+            <PercentStat label="Avg benefit realized" value={data.summary.avgRealization} />
           </div>
 
           <div className="mb-6">
