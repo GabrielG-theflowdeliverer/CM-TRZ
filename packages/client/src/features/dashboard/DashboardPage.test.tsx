@@ -71,6 +71,8 @@ describe('DashboardPage', () => {
     expect(screen.getByText('CRM Rollout')).toBeInTheDocument();
     expect(screen.getAllByText('Benefit realized')).toHaveLength(3);
     expect(screen.getByText(/adoption 80% · benefit 64%/)).toBeInTheDocument();
+    // Pooled correlation renders with a per-project column (dots coloured by project).
+    expect(screen.getByRole('columnheader', { name: 'Project' })).toBeInTheDocument();
   });
 
   it('scopes the dashboard to the selected projects', async () => {

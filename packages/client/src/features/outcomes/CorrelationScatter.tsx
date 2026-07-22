@@ -1,4 +1,4 @@
-import { CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Legend, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { BarrierBadge } from '../../ui/scores';
 
 export interface CorrelationPoint {
@@ -9,6 +9,9 @@ export interface CorrelationPoint {
   project?: string; // set on the portfolio (pooled) view
 }
 
+/** Static hex (not interpolated) so dots + legend + table swatches stay consistent per project. */
+const PROJECT_COLORS = ['#4f46e5', '#059669', '#d97706', '#e11d48', '#0284c7', '#7c3aed', '#0891b2', '#ca8a04'];
+
 /**
  * Shared leading→lagging scatter: ADKAR readiness (x) against adoption
  * realization (y), one dot per group. A directional signal, not proof of cause.
@@ -18,6 +21,9 @@ export function CorrelationScatter({ points, showProject = false }: { points: Co
   const plottable = points.filter(
     (p): p is CorrelationPoint & { adkar: number; adoption: number } => p.adkar !== null && p.adoption !== null,
   );
+  // On the pooled portfolio view, colour dots by project (with a legend + table swatches).
+  const projects = showProject ? [...new Set(points.map((p) => p.project ?? ''))] : [];
+  const colorFor = (project?: string) => PROJECT_COLORS[Math.max(0, projects.indexOf(project ?? '')) % PROJECT_COLORS.length]!;
 
   return (
     <div className="space-y-3">
@@ -61,7 +67,19 @@ export function CorrelationScatter({ points, showProject = false }: { points: Co
                   );
                 }}
               />
-              <Scatter data={plottable} fill="#4f46e5" />
+              {showProject && <Legend wrapperStyle={{ fontSize: 11 }} />}
+              {showProject ? (
+                projects.map((proj) => (
+                  <Scatter
+                    key={proj}
+                    name={proj || '(project)'}
+                    data={plottable.filter((p) => (p.project ?? '') === proj)}
+                    fill={colorFor(proj)}
+                  />
+                ))
+              ) : (
+                <Scatter data={plottable} fill="#4f46e5" />
+              )}
             </ScatterChart>
           </ResponsiveContainer>
         </div>
@@ -81,7 +99,17 @@ export function CorrelationScatter({ points, showProject = false }: { points: Co
           {points.map((p, i) => (
             <tr key={`${p.group}-${p.project ?? ''}-${i}`}>
               <td className="cmt-td font-medium">{p.group}</td>
-              {showProject && <td className="cmt-td text-slate-500">{p.project}</td>}
+              {showProject && (
+                <td className="cmt-td text-slate-500">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: colorFor(p.project) }}
+                    />
+                    {p.project}
+                  </span>
+                </td>
+              )}
               <td className="cmt-td tabular-nums">{p.adkar === null ? '—' : p.adkar.toFixed(1)}</td>
               <td className="cmt-td">
                 <BarrierBadge barrier={p.barrier} />
