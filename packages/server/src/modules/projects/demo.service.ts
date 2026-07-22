@@ -8,6 +8,15 @@ import * as assessments from '../assessments/assessments.service.js';
 import * as blueprints from '../blueprints/blueprints.service.js';
 import * as activities from '../activities/activities.service.js';
 import * as cmPerf from '../cm-perf/cm-perf.service.js';
+import * as orgGroups from '../org-groups/org-groups.service.js';
+import * as outcomes from '../outcomes/outcomes.service.js';
+import * as reinforcement from '../reinforcement/reinforcement.service.js';
+import * as surveys from '../surveys/surveys.service.js';
+
+/** Reuse an org group by name (so demo projects pool on the saturation heatmap) or create it. */
+function orgGroupByName(db: Db, name: string): string {
+  return (orgGroups.listOrgGroups(db).find((g) => g.name === name) ?? orgGroups.createOrgGroup(db, { name })).id;
+}
 
 /** Seed a fully-populated sample project so the tool is explorable immediately. */
 export function generateDemoProject(db: Db): Project {
@@ -115,6 +124,38 @@ export function generateDemoProject(db: Db): Project {
   const report = cmPerf.createReport(db, pid, { name: 'Go-live readiness', date: '2026-08-15' });
   const firstItem = report.items[0];
   if (firstItem) cmPerf.updateItem(db, firstItem.id, { status: 'On Target', description: 'Awareness activities complete' });
+
+  // Phase 3 / cross-project features (built after the original generator):
+
+  // Saturation — link the impacted groups to shared org groups.
+  impact.updateGroup(db, sales.id, { orgGroupId: orgGroupByName(db, 'Sales') });
+  impact.updateGroup(db, ops.id, { orgGroupId: orgGroupByName(db, 'Operations') });
+
+  // Outcomes — an objective with adoption + benefit metrics and a measurement trend.
+  const objective = outcomes.createObjective(db, pid, {
+    level: 'initiative',
+    statement: 'Drive CRM adoption and cut sales cycle time',
+  });
+  const utilization = outcomes.createMetric(db, objective.id, {
+    kind: 'adoption', name: 'CRM utilization', unit: '%', baseline: 0, target: 100, direction: 'increase',
+    adoptionMeasure: 'utilization', groupId: sales.id,
+  });
+  outcomes.addMeasurement(db, utilization.id, { date: '2026-07-15', value: 30 });
+  outcomes.addMeasurement(db, utilization.id, { date: '2026-09-01', value: 75 });
+  const cycleTime = outcomes.createMetric(db, objective.id, {
+    kind: 'benefit', name: 'Sales cycle time', unit: 'days', baseline: 30, target: 20, direction: 'decrease',
+  });
+  outcomes.addMeasurement(db, cycleTime.id, { date: '2026-07-15', value: 29 });
+  outcomes.addMeasurement(db, cycleTime.id, { date: '2026-09-01', value: 24 });
+
+  // Reinforcement — group-scoped mechanisms + a project-wide sustainment action.
+  reinforcement.createAction(db, pid, { groupId: sales.id, mechanism: 'Manager recognition of CRM wins in weekly stand-up', owner: 'J. Smith', status: 'In Progress' });
+  reinforcement.createAction(db, pid, { groupId: ops.id, mechanism: 'Embed CRM metrics in the ops review', status: 'Completed' });
+  reinforcement.createAction(db, pid, { mechanism: 'Quarterly sustainment audit', status: 'Not Started' });
+
+  // Surveys — a sponsor-competency campaign to the named sponsor.
+  const competency = assessments.createAssessment(db, pid, { type: 'sponsor_competency', subjectKind: 'person', label: 'Sponsor competency check' });
+  surveys.createCampaign(db, pid, { assessmentId: competency.id, roleIds: [sponsor.id] });
 
   // Watch list.
   projectsService.updateProject(db, pid, { watchGroupIds: [sales.id, ops.id] });
