@@ -1,16 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import type { SaturationBand } from '@cmt/domain';
+import type { SaturationGridRow, SaturationProject } from '@cmt/domain';
 import { api } from '../../lib/api';
 
-export interface SaturationCellDto {
-  score: number;
-  band: SaturationBand;
-  contributions: Array<{ projectId: string; projectName: string; load: number }>;
-}
+export type { SaturationGridCell as SaturationCellDto } from '@cmt/domain';
 
 export interface SaturationDto {
   months: string[];
-  rows: Array<{ orgGroupId: string; orgGroupName: string; cells: SaturationCellDto[] }>;
+  rows: SaturationGridRow[];
+  projects: SaturationProject[];
   unlinkedGroupCount: number;
 }
 

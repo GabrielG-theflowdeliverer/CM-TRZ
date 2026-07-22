@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildSaturationRows,
   GOLIVE_WEIGHT,
   monthOf,
   monthRange,
   projectWindow,
+  type SaturationProject,
   saturationBand,
   saturationLoad,
+  shiftMonth,
 } from './saturation.js';
 
 const noRoadmap = { kickoffDate: null, goliveDate: null, outcomesDate: null };
@@ -87,5 +90,47 @@ describe('saturationBand', () => {
     expect(saturationBand(5)).toBe('elevated');
     expect(saturationBand(8.9)).toBe('elevated');
     expect(saturationBand(9)).toBe('overloaded');
+  });
+});
+
+describe('shiftMonth', () => {
+  it('moves whole months across year boundaries in both directions', () => {
+    expect(shiftMonth('2026-09', 3)).toBe('2026-12');
+    expect(shiftMonth('2026-11', 3)).toBe('2027-02');
+    expect(shiftMonth('2026-02', -3)).toBe('2025-11');
+    expect(shiftMonth('2026-07', 0)).toBe('2026-07');
+  });
+});
+
+describe('buildSaturationRows', () => {
+  const orgGroups = [{ id: 'sales', name: 'Sales' }];
+  const projects: SaturationProject[] = [
+    { id: 'a', name: 'CRM', startMonth: '2026-06', endMonth: '2026-12', goliveMonth: '2026-09', groups: [{ orgGroupId: 'sales', degree: 4 }] },
+    { id: 'b', name: 'ERP', startMonth: '2026-09', endMonth: '2027-01', goliveMonth: '2026-10', groups: [{ orgGroupId: 'sales', degree: 2 }] },
+  ];
+  const months = ['2026-08', '2026-09', '2026-11'];
+
+  it('sums per-project loads into banded cells with contributions', () => {
+    const [row] = buildSaturationRows(months, orgGroups, projects);
+    const cell = (m: string) => row!.cells[months.indexOf(m)]!;
+    expect(cell('2026-08').score).toBe(4 * GOLIVE_WEIGHT); // CRM only, go-live-adjacent
+    // Sep: CRM at go-live (4×1.5) + ERP go-live-adjacent (2×1.5) = 9 -> overloaded.
+    expect(cell('2026-09').score).toBe(4 * GOLIVE_WEIGHT + 2 * GOLIVE_WEIGHT);
+    expect(cell('2026-09').band).toBe('overloaded');
+    expect(cell('2026-09').contributions.map((c) => c.projectName)).toEqual(['CRM', 'ERP']);
+    // Nov: CRM off-peak (4) + ERP go-live-adjacent to its Oct go-live (2×1.5).
+    expect(cell('2026-11').score).toBe(4 + 2 * GOLIVE_WEIGHT);
+  });
+
+  it('re-sequences a project by whole months (the what-if path)', () => {
+    // Push ERP out 3 months: its window becomes Dec–Apr, go-live Jan.
+    const [base] = buildSaturationRows(months, orgGroups, projects, {});
+    const [shifted] = buildSaturationRows(months, orgGroups, projects, { b: 3 });
+    const at = (row: typeof base, m: string) => row!.cells[months.indexOf(m)]!;
+    // September now has only CRM — ERP has moved off it entirely.
+    expect(at(shifted!, '2026-09').score).toBe(4 * GOLIVE_WEIGHT);
+    expect(at(shifted!, '2026-09').contributions).toHaveLength(1);
+    // The unshifted grid is unchanged (pure function, no mutation).
+    expect(at(base!, '2026-09').contributions).toHaveLength(2);
   });
 });

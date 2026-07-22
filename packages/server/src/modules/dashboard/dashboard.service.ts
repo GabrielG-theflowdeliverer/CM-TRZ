@@ -5,16 +5,17 @@ import {
   buildPortfolioSummary,
   buildProjectHealth,
   degreeOfImpactHistogram,
+  buildSaturationRows,
+  monthOf,
   monthRange,
   projectWindow,
-  saturationBand,
-  saturationLoad,
   type ActivityStatus,
   type BarrierPoint,
   type CmPerfStatus,
   type ProjectHealth,
   type ProjectHealthInput,
-  type SaturationBand,
+  type SaturationGridRow,
+  type SaturationProject,
 } from '@cmt/domain';
 import { today as todayIso, type Db } from '../../infra/db.js';
 import * as projects from '../projects/projects.service.js';
@@ -59,15 +60,11 @@ export interface ProjectDashboardPayload {
   latestCmPerf: { id: string; name: string; date: string | null; worstStatus: string | null } | null;
 }
 
-export interface SaturationCell {
-  score: number;
-  band: SaturationBand;
-  contributions: Array<{ projectId: string; projectName: string; load: number }>;
-}
-
 export interface SaturationPayload {
   months: string[];
-  rows: Array<{ orgGroupId: string; orgGroupName: string; cells: SaturationCell[] }>;
+  rows: SaturationGridRow[];
+  /** The reduced project model, so the client can recompute a what-if locally. */
+  projects: SaturationProject[];
   /** Project groups in active projects not linked to any org group — coverage gap. */
   unlinkedGroupCount: number;
 }
@@ -77,7 +74,9 @@ export interface SaturationPayload {
  * every non-completed project whose linked groups it represents. Derived on
  * read from roadmap windows + degree of impact (see domain/calc/saturation) —
  * nothing stored. Unlinked project groups contribute nothing but are counted,
- * so gaps in coverage are visible rather than silent.
+ * so gaps in coverage are visible rather than silent. The reduced project model
+ * is returned too, so the client can recompute the grid for a "what-if"
+ * re-sequencing without a round trip (same domain builder, no shifts here).
  */
 export function getSaturation(db: Db, from: string, to: string): SaturationPayload {
   const months = monthRange(from, to);
@@ -85,40 +84,36 @@ export function getSaturation(db: Db, from: string, to: string): SaturationPaylo
   const active = projects.listProjects(db).filter((p) => p.status !== 'Completed');
 
   let unlinkedGroupCount = 0;
-  // orgGroupId -> per-month contributions.
-  const loads = new Map<string, Array<Array<{ projectId: string; projectName: string; load: number }>>>();
-  for (const g of groups) loads.set(g.id, months.map(() => []));
-
+  const model: SaturationProject[] = [];
   for (const project of active) {
     const rm = roadmap.getRoadmap(db, project.id);
     const window = projectWindow(
       rm,
       activities.listActivities(db, project.id).map((a) => ({ startDate: a.startDate, finishDate: a.finishDate })),
     );
+    const projectGroups: SaturationProject['groups'] = [];
     for (const group of impact.listGroups(db, project.id)) {
       if (group.orgGroupId === null) {
         unlinkedGroupCount += 1;
         continue;
       }
-      const perMonth = loads.get(group.orgGroupId);
-      if (!perMonth) continue; // linked org group no longer exists
-      months.forEach((bucket, i) => {
-        const load = saturationLoad(group.computed.degreeOfImpact, window, bucket, rm.goliveDate);
-        if (load > 0) perMonth[i]!.push({ projectId: project.id, projectName: project.name, load });
-      });
+      projectGroups.push({ orgGroupId: group.orgGroupId, degree: group.computed.degreeOfImpact });
     }
+    if (projectGroups.length === 0) continue; // can't affect the heatmap; keep the model focused
+    model.push({
+      id: project.id,
+      name: project.name,
+      startMonth: window ? monthOf(window.start) : null,
+      endMonth: window ? monthOf(window.end) : null,
+      goliveMonth: rm.goliveDate ? monthOf(rm.goliveDate) : null,
+      groups: projectGroups,
+    });
   }
 
   return {
     months,
-    rows: groups.map((g) => ({
-      orgGroupId: g.id,
-      orgGroupName: g.name,
-      cells: loads.get(g.id)!.map((contributions) => {
-        const score = contributions.reduce((sum, c) => sum + c.load, 0);
-        return { score, band: saturationBand(score), contributions };
-      }),
-    })),
+    rows: buildSaturationRows(months, groups, model),
+    projects: model,
     unlinkedGroupCount,
   };
 }

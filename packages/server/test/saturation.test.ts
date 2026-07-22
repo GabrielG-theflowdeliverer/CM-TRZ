@@ -68,6 +68,9 @@ describe('saturation heatmap', () => {
       .expect(200);
     expect(body.months).toHaveLength(9);
     expect(body.unlinkedGroupCount).toBe(0);
+    // The reduced project model ships for the client what-if.
+    expect(body.projects).toHaveLength(2);
+    expect(body.projects[0]).toMatchObject({ goliveMonth: '2026-09', startMonth: '2026-07' });
     const row = body.rows.find((r: { orgGroupName: string }) => r.orgGroupName === 'Sales');
     const cell = (month: string) => row.cells[body.months.indexOf(month)];
 
