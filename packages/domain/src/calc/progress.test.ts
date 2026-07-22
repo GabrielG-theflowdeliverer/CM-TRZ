@@ -98,6 +98,12 @@ describe('buildProjectHealth', () => {
       { date: '2026-07-20', label: 'Go Live' },
       { date: '2026-09-01', label: 'Outcomes' },
     ],
+    outcomeMetrics: [
+      { kind: 'benefit', pct: 80 },
+      { kind: 'benefit', pct: 40 },
+      { kind: 'adoption', pct: 60 },
+      { kind: 'adoption', pct: null }, // unmeasured -> excluded from means
+    ],
   };
 
   it('aggregates groups, progress, overdue and next milestone', () => {
@@ -111,9 +117,26 @@ describe('buildProjectHealth', () => {
     expect(h.nextMilestone).toEqual({ date: '2026-07-20', label: 'Go Live' });
   });
 
-  it('feeds the portfolio summary', () => {
+  it('rolls up outcome realization (overall / adoption / benefit), ignoring unmeasured', () => {
+    const h = buildProjectHealth(base, TODAY);
+    expect(h.outcomes).toEqual({
+      realization: 60, // mean(80, 40, 60)
+      benefit: 60, // mean(80, 40)
+      adoption: 60, // mean(60), the null excluded
+      metricCount: 4,
+      measuredCount: 3,
+    });
+  });
+
+  it('feeds the portfolio summary (incl. average realization)', () => {
     const h = buildProjectHealth(base, TODAY);
     const s = buildPortfolioSummary([h], [{ date: '2026-07-20' }, { date: '2026-09-09' }, { date: null }], TODAY);
-    expect(s).toEqual({ totalProjects: 1, highRiskCount: 1, overdueActivities: 1, checksDueSoon: 1 });
+    expect(s).toEqual({
+      totalProjects: 1,
+      highRiskCount: 1,
+      overdueActivities: 1,
+      checksDueSoon: 1,
+      avgRealization: 60,
+    });
   });
 });

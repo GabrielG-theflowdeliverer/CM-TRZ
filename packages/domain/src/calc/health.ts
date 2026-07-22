@@ -4,6 +4,7 @@ import type { BarrierPoint } from './adkar.js';
 import type { ActivityStatus, CmPerfStatus } from '../vocab/index.js';
 import { activityProgress, isOverdue, isUpcoming, type ProgressSummary } from './progress.js';
 import { degreeOfImpact } from './impact.js';
+import { overallRealization } from './outcomes.js';
 
 /** Raw per-project facts the server gathers; health is derived from these. */
 export interface ProjectHealthInput {
@@ -25,6 +26,17 @@ export interface ProjectHealthInput {
   latestCmPerfStatus: CmPerfStatus | null;
   /** All dated items that can appear as "next milestone": roadmap dates, checks, activity finishes. */
   upcomingDates: Array<{ date: string; label: string }>;
+  /** Each outcome metric's realization % (null = not yet measurable), for the portfolio rollup. */
+  outcomeMetrics: Array<{ kind: 'adoption' | 'benefit'; pct: number | null }>;
+}
+
+/** Benefit/adoption realization rolled up for the portfolio dashboard. */
+export interface OutcomeHealth {
+  realization: number | null;
+  adoption: number | null;
+  benefit: number | null;
+  metricCount: number;
+  measuredCount: number;
 }
 
 export interface ProjectHealth {
@@ -42,6 +54,19 @@ export interface ProjectHealth {
   overdueCount: number;
   latestCmPerfStatus: CmPerfStatus | null;
   nextMilestone: { date: string; label: string } | null;
+  outcomes: OutcomeHealth;
+}
+
+/** Roll a project's metric realizations into overall / adoption / benefit figures. */
+export function outcomeHealth(metrics: ReadonlyArray<{ kind: 'adoption' | 'benefit'; pct: number | null }>): OutcomeHealth {
+  const pctsOf = (kind: 'adoption' | 'benefit') => metrics.filter((m) => m.kind === kind).map((m) => m.pct);
+  return {
+    realization: overallRealization(metrics.map((m) => m.pct)),
+    adoption: overallRealization(pctsOf('adoption')),
+    benefit: overallRealization(pctsOf('benefit')),
+    metricCount: metrics.length,
+    measuredCount: metrics.filter((m) => m.pct !== null).length,
+  };
 }
 
 export function buildProjectHealth(input: ProjectHealthInput, today: string): ProjectHealth {
@@ -70,6 +95,7 @@ export function buildProjectHealth(input: ProjectHealthInput, today: string): Pr
     overdueCount: input.activityStatuses.filter((a) => isOverdue(a.finishDate, a.status, today)).length,
     latestCmPerfStatus: input.latestCmPerfStatus,
     nextMilestone: upcoming[0] ?? null,
+    outcomes: outcomeHealth(input.outcomeMetrics),
   };
 }
 
@@ -128,6 +154,8 @@ export interface PortfolioSummary {
   highRiskCount: number;
   overdueActivities: number;
   checksDueSoon: number;
+  /** Mean realization across projects that have measurable outcomes; null if none do. */
+  avgRealization: number | null;
 }
 
 export function buildPortfolioSummary(
@@ -141,5 +169,6 @@ export function buildPortfolioSummary(
     highRiskCount: projects.filter((p) => p.risk?.quadrant === 'High').length,
     overdueActivities: projects.reduce((acc, p) => acc + p.overdueCount, 0),
     checksDueSoon: checkDates.filter((c) => isUpcoming(c.date, today, windowDays)).length,
+    avgRealization: overallRealization(projects.map((p) => p.outcomes.realization)),
   };
 }

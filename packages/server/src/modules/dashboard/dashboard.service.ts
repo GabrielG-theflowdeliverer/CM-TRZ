@@ -25,6 +25,7 @@ import * as roadmap from '../roadmap/roadmap.service.js';
 import * as cmPerf from '../cm-perf/cm-perf.service.js';
 import * as activities from '../activities/activities.service.js';
 import * as orgGroups from '../org-groups/org-groups.service.js';
+import * as outcomes from '../outcomes/outcomes.service.js';
 
 export interface DashboardPayload {
   summary: ReturnType<typeof buildPortfolioSummary>;
@@ -258,6 +259,7 @@ export function getDashboard(db: Db): DashboardPayload {
       activityStatuses,
       latestCmPerfStatus: (latestCmPerfStatus as CmPerfStatus | null) ?? null,
       upcomingDates,
+      outcomeMetrics: outcomes.listMetricRealizations(db, project.id),
     };
     healths.push(buildProjectHealth(input, today));
   }
