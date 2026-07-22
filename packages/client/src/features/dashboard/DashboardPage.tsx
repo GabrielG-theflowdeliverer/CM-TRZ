@@ -184,8 +184,9 @@ export function DashboardPage() {
   if (!data) return null;
 
   const visible = selected.length === 0 ? data.projects : data.projects.filter((p) => selected.includes(p.projectId));
-  const correlationPoints =
-    selected.length === 0 ? data.correlationPoints : data.correlationPoints.filter((p) => selected.includes(p.projectId));
+  const correlationPoints = (
+    selected.length === 0 ? data.correlationPoints : data.correlationPoints.filter((p) => selected.includes(p.projectId))
+  ).map((p) => ({ group: p.group, adkar: p.adkar, adoption: p.adoption, barrier: p.barrier, project: p.projectName }));
   const summary = {
     totalProjects: visible.length,
     highRiskCount: visible.filter((p) => p.risk?.quadrant === 'High').length,

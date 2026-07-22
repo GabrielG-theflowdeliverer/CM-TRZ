@@ -32,7 +32,10 @@ const health = (over: Partial<ProjectHealthDto> = {}): ProjectHealthDto => ({
 const dashboard = (projects: ProjectHealthDto[]): DashboardDto => ({
   summary: { totalProjects: projects.length, highRiskCount: 0, overdueActivities: 0, checksDueSoon: 0, avgRealization: 72 },
   projects,
-  correlationPoints: [{ projectId: 'p1', projectName: 'CRM Rollout', group: 'Sales', adkar: 4, adoption: 80, barrier: null }],
+  correlationPoints: [
+    { projectId: 'p1', projectName: 'Alpha Project', group: 'Sales', adkar: 4, adoption: 80, barrier: null },
+    { projectId: 'p2', projectName: 'Beta Project', group: 'Ops', adkar: 2, adoption: 30, barrier: 'Desire' },
+  ],
   generatedAt: 'x',
 });
 
@@ -71,8 +74,11 @@ describe('DashboardPage', () => {
     expect(screen.getByText('CRM Rollout')).toBeInTheDocument();
     expect(screen.getAllByText('Benefit realized')).toHaveLength(3);
     expect(screen.getByText(/adoption 80% · benefit 64%/)).toBeInTheDocument();
-    // Pooled correlation renders with a per-project column (dots coloured by project).
+    // Pooled correlation renders per-project (dots coloured by project): the
+    // project name flows through to the table, distinct from the project cards.
     expect(screen.getByRole('columnheader', { name: 'Project' })).toBeInTheDocument();
+    expect(screen.getByText('Alpha Project')).toBeInTheDocument();
+    expect(screen.getByText('Beta Project')).toBeInTheDocument();
   });
 
   it('scopes the dashboard to the selected projects', async () => {
