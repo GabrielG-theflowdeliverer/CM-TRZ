@@ -62,21 +62,43 @@ function monthIndex(bucket: string): number {
   return year * 12 + (month - 1);
 }
 
+/** Shift a 'yyyy-mm' bucket by a whole number of months. */
+export function shiftMonth(bucket: string, by: number): string {
+  const index = monthIndex(bucket) + by;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
 /** Disruption peaks around go-live: buckets within ±1 month weigh heavier. */
 export const GOLIVE_WEIGHT = 1.5;
 
-/** One project's load on a group for one month bucket. */
+/** One project's load on a group for one month bucket — the core rule, at month granularity. */
+export function monthLoad(
+  degreeOfImpact: number | null,
+  startMonth: string | null,
+  endMonth: string | null,
+  bucket: string,
+  goliveMonth: string | null,
+): number {
+  if (degreeOfImpact === null || startMonth === null || endMonth === null) return 0;
+  if (bucket < startMonth || bucket > endMonth) return 0;
+  const nearGolive = goliveMonth !== null && Math.abs(monthIndex(bucket) - monthIndex(goliveMonth)) <= 1;
+  return degreeOfImpact * (nearGolive ? GOLIVE_WEIGHT : 1);
+}
+
+/** As `monthLoad`, from an ISO-date window (used server-side from roadmap dates). */
 export function saturationLoad(
   degreeOfImpact: number | null,
   window: SaturationWindow | null,
   bucket: string,
   goliveDate: string | null,
 ): number {
-  if (degreeOfImpact === null || window === null) return 0;
-  if (bucket < monthOf(window.start) || bucket > monthOf(window.end)) return 0;
-  const nearGolive =
-    goliveDate !== null && Math.abs(monthIndex(bucket) - monthIndex(monthOf(goliveDate))) <= 1;
-  return degreeOfImpact * (nearGolive ? GOLIVE_WEIGHT : 1);
+  return monthLoad(
+    degreeOfImpact,
+    window ? monthOf(window.start) : null,
+    window ? monthOf(window.end) : null,
+    bucket,
+    goliveDate ? monthOf(goliveDate) : null,
+  );
 }
 
 export type SaturationBand = 'ok' | 'elevated' | 'overloaded';
@@ -92,4 +114,64 @@ export function saturationBand(score: number): SaturationBand {
   if (score >= SATURATION_THRESHOLDS.overloaded) return 'overloaded';
   if (score >= SATURATION_THRESHOLDS.elevated) return 'elevated';
   return 'ok';
+}
+
+/**
+ * A project reduced to what the heatmap needs — its month window, go-live
+ * month, and per-org-group degree of impact. Month-based so the whole grid can
+ * be recomputed cheaply (e.g. a client "what-if" that shifts a go-live).
+ */
+export interface SaturationProject {
+  id: string;
+  name: string;
+  startMonth: string | null;
+  endMonth: string | null;
+  goliveMonth: string | null;
+  groups: Array<{ orgGroupId: string; degree: number | null }>;
+}
+
+export interface SaturationGridCell {
+  score: number;
+  band: SaturationBand;
+  contributions: Array<{ projectId: string; projectName: string; load: number }>;
+}
+
+export interface SaturationGridRow {
+  orgGroupId: string;
+  orgGroupName: string;
+  cells: SaturationGridCell[];
+}
+
+/**
+ * Assemble the heatmap: for each org group and month, the summed load from
+ * every project whose linked groups it represents. `shifts` moves a project's
+ * whole window and go-live by N months — the same code powers the server's
+ * live view (no shifts) and the client's what-if re-sequencing.
+ */
+export function buildSaturationRows(
+  months: string[],
+  orgGroups: ReadonlyArray<{ id: string; name: string }>,
+  projects: ReadonlyArray<SaturationProject>,
+  shifts: Readonly<Record<string, number>> = {},
+): SaturationGridRow[] {
+  return orgGroups.map((orgGroup) => ({
+    orgGroupId: orgGroup.id,
+    orgGroupName: orgGroup.name,
+    cells: months.map((bucket) => {
+      const contributions: SaturationGridCell['contributions'] = [];
+      for (const project of projects) {
+        const by = shifts[project.id] ?? 0;
+        const start = project.startMonth === null ? null : shiftMonth(project.startMonth, by);
+        const end = project.endMonth === null ? null : shiftMonth(project.endMonth, by);
+        const golive = project.goliveMonth === null ? null : shiftMonth(project.goliveMonth, by);
+        let load = 0;
+        for (const g of project.groups) {
+          if (g.orgGroupId === orgGroup.id) load += monthLoad(g.degree, start, end, bucket, golive);
+        }
+        if (load > 0) contributions.push({ projectId: project.id, projectName: project.name, load });
+      }
+      const score = contributions.reduce((sum, c) => sum + c.load, 0);
+      return { score, band: saturationBand(score), contributions };
+    }),
+  }));
 }

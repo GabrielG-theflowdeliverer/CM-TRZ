@@ -1,18 +1,11 @@
 import { Router } from 'express';
-import { monthOf, monthRange } from '@cmt/domain';
+import { monthOf, monthRange, shiftMonth } from '@cmt/domain';
 import { today, type Db } from '../../infra/db.js';
 import { HttpError } from '../../infra/http.js';
 import * as service from './dashboard.service.js';
 
 const MONTH_RE = /^\d{4}-\d{2}$/;
 const MAX_MONTHS = 24;
-
-/** Shift a 'yyyy-mm' bucket by a number of months. */
-function shiftMonth(bucket: string, by: number): string {
-  const [year, month] = bucket.split('-').map(Number) as [number, number];
-  const index = year * 12 + (month - 1) + by;
-  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
-}
 
 export function createDashboardRouter(db: Db): Router {
   const router = Router();
