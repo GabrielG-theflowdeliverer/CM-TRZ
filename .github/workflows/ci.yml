@@ -16,5 +16,8 @@ jobs:
           node-version: 26
           cache: npm
       - run: npm ci
-      # The repo quality gate: typecheck + lint + all tests (domain, server, client).
-      - run: npm run check
+      # Quality gate: typecheck + lint, then coverage (runs the full test suite
+      # once AND enforces per-package coverage thresholds).
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run coverage
