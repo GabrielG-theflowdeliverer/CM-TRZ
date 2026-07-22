@@ -71,6 +71,16 @@ describe('projects', () => {
     // The cross-plan activity appears once and links two plans.
     const crossPlan = activities.find((a: { name: string }) => a.name === 'Launch email + FAQ');
     expect(crossPlan.planIds.length).toBe(2);
+
+    // Phase-3 / cross-project features are seeded too.
+    expect(groups.some((g: { orgGroupId: string | null }) => g.orgGroupId !== null)).toBe(true); // saturation link
+    const { body: outcomes } = await request(ctx.app).get(`/api/projects/${demo.id}/outcomes`).expect(200);
+    expect(outcomes.objectives.length).toBeGreaterThanOrEqual(1);
+    expect(outcomes.realization).not.toBeNull();
+    const { body: reinf } = await request(ctx.app).get(`/api/projects/${demo.id}/reinforcement-actions`).expect(200);
+    expect(reinf.length).toBeGreaterThanOrEqual(3);
+    const { body: campaigns } = await request(ctx.app).get(`/api/projects/${demo.id}/surveys`).expect(200);
+    expect(campaigns.length).toBeGreaterThanOrEqual(1);
   });
 
   it('404s on unknown ids', async () => {
