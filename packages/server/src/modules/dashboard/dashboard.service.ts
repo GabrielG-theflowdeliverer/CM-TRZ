@@ -60,11 +60,17 @@ export interface ProjectDashboardPayload {
   latestCmPerf: { id: string; name: string; date: string | null; worstStatus: string | null } | null;
 }
 
+/** The compute model plus the raw roadmap dates, so the client's what-if can
+ *  show current->proposed dates and apply real re-sequencing. */
+export type SaturationProjectView = SaturationProject & {
+  roadmap: { kickoffDate: string | null; goliveDate: string | null; outcomesDate: string | null };
+};
+
 export interface SaturationPayload {
   months: string[];
   rows: SaturationGridRow[];
   /** The reduced project model, so the client can recompute a what-if locally. */
-  projects: SaturationProject[];
+  projects: SaturationProjectView[];
   /** Project groups in active projects not linked to any org group — coverage gap. */
   unlinkedGroupCount: number;
 }
@@ -84,7 +90,7 @@ export function getSaturation(db: Db, from: string, to: string): SaturationPaylo
   const active = projects.listProjects(db).filter((p) => p.status !== 'Completed');
 
   let unlinkedGroupCount = 0;
-  const model: SaturationProject[] = [];
+  const model: SaturationProjectView[] = [];
   for (const project of active) {
     const rm = roadmap.getRoadmap(db, project.id);
     const window = projectWindow(
@@ -107,6 +113,7 @@ export function getSaturation(db: Db, from: string, to: string): SaturationPaylo
       endMonth: window ? monthOf(window.end) : null,
       goliveMonth: rm.goliveDate ? monthOf(rm.goliveDate) : null,
       groups: projectGroups,
+      roadmap: { kickoffDate: rm.kickoffDate, goliveDate: rm.goliveDate, outcomesDate: rm.outcomesDate },
     });
   }
 

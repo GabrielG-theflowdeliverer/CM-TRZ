@@ -68,6 +68,21 @@ export function shiftMonth(bucket: string, by: number): string {
   return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
 }
 
+/**
+ * Shift a full 'yyyy-mm-dd' date by N whole months, clamping the day to the
+ * target month's length (Jan 31 + 1 month -> Feb 28). Used to turn a month-level
+ * what-if shift into concrete new roadmap dates.
+ */
+export function shiftDateByMonths(iso: string, by: number): string {
+  const [year, month, day] = iso.split('-').map(Number) as [number, number, number];
+  const index = year * 12 + (month - 1) + by;
+  const y = Math.floor(index / 12);
+  const m = (index % 12) + 1;
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate(); // day 0 of next month = last of this
+  const d = Math.min(day, lastDay);
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
 /** Disruption peaks around go-live: buckets within ±1 month weigh heavier. */
 export const GOLIVE_WEIGHT = 1.5;
 

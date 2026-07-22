@@ -8,6 +8,7 @@ import {
   type SaturationProject,
   saturationBand,
   saturationLoad,
+  shiftDateByMonths,
   shiftMonth,
 } from './saturation.js';
 
@@ -99,6 +100,21 @@ describe('shiftMonth', () => {
     expect(shiftMonth('2026-11', 3)).toBe('2027-02');
     expect(shiftMonth('2026-02', -3)).toBe('2025-11');
     expect(shiftMonth('2026-07', 0)).toBe('2026-07');
+  });
+});
+
+describe('shiftDateByMonths', () => {
+  it('shifts full dates and preserves the day when it fits', () => {
+    expect(shiftDateByMonths('2026-09-15', 3)).toBe('2026-12-15');
+    expect(shiftDateByMonths('2026-01-10', -2)).toBe('2025-11-10');
+    expect(shiftDateByMonths('2026-07-01', 0)).toBe('2026-07-01');
+  });
+
+  it('clamps the day to the shorter target month', () => {
+    expect(shiftDateByMonths('2026-01-31', 1)).toBe('2026-02-28'); // Feb, non-leap
+    expect(shiftDateByMonths('2024-01-31', 1)).toBe('2024-02-29'); // Feb, leap
+    expect(shiftDateByMonths('2026-08-31', 2)).toBe('2026-10-31'); // Oct has 31, no clamp
+    expect(shiftDateByMonths('2026-05-31', 1)).toBe('2026-06-30'); // Jun has 30
   });
 });
 
