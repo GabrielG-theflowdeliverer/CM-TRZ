@@ -14,5 +14,16 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
+    coverage: {
+      provider: 'v8',
+      all: true,
+      include: ['src/**/*.{ts,tsx}'],
+      // Bootstrap/entry, type-only, and test-support files aren't unit targets.
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/main.tsx', 'src/test/**', 'src/lib/types.ts'],
+      reporter: ['text-summary'],
+      // The weak layer (many legacy pages untested). Floors just below current;
+      // ratchet up ~5 points per page-test backfill PR (see docs/test-coverage.md).
+      thresholds: { statements: 30, branches: 78, functions: 55, lines: 30 },
+    },
   },
 } as never);
