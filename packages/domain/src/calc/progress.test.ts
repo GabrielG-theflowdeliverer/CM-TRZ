@@ -104,6 +104,7 @@ describe('buildProjectHealth', () => {
       { kind: 'adoption', pct: 60 },
       { kind: 'adoption', pct: null }, // unmeasured -> excluded from means
     ],
+    incompleteCheckDates: ['2026-07-20', '2026-09-09'], // first is within 14 days of TODAY
   };
 
   it('aggregates groups, progress, overdue and next milestone', () => {
@@ -115,6 +116,7 @@ describe('buildProjectHealth', () => {
     expect(h.progress.percentComplete).toBe(33);
     expect(h.overdueCount).toBe(1); // In Progress finishing 07-10
     expect(h.nextMilestone).toEqual({ date: '2026-07-20', label: 'Go Live' });
+    expect(h.checksDueSoon).toBe(1); // only 2026-07-20 is within the 14-day window
   });
 
   it('rolls up outcome realization (overall / adoption / benefit), ignoring unmeasured', () => {
@@ -128,14 +130,14 @@ describe('buildProjectHealth', () => {
     });
   });
 
-  it('feeds the portfolio summary (incl. average realization)', () => {
+  it('feeds the portfolio summary (incl. average realization), summing per-project', () => {
     const h = buildProjectHealth(base, TODAY);
-    const s = buildPortfolioSummary([h], [{ date: '2026-07-20' }, { date: '2026-09-09' }, { date: null }], TODAY);
+    const s = buildPortfolioSummary([h, h]); // two identical projects double the sums
     expect(s).toEqual({
-      totalProjects: 1,
-      highRiskCount: 1,
-      overdueActivities: 1,
-      checksDueSoon: 1,
+      totalProjects: 2,
+      highRiskCount: 2,
+      overdueActivities: 2,
+      checksDueSoon: 2,
       avgRealization: 60,
     });
   });

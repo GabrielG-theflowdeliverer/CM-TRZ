@@ -102,6 +102,7 @@ export interface ProjectHealthDto {
     metricCount: number;
     measuredCount: number;
   };
+  checksDueSoon: number;
 }
 
 export interface DashboardDto {

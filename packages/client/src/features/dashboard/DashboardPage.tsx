@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ADKAR_ELEMENTS, ADKAR_LABELS, PCT_ASPECT_KEYS, PCT_ASPECT_LABELS } from '@cmt/domain';
+import { ADKAR_ELEMENTS, ADKAR_LABELS, PCT_ASPECT_KEYS, PCT_ASPECT_LABELS, overallRealization } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { DashboardDto, ProjectHealthDto } from '../../lib/types';
 import { BandChip, RiskBadge } from '../../ui/scores';
+import { MultiSelect } from '../../ui/MultiSelect';
 import { SaturationHeatmap } from './SaturationHeatmap';
 
 function Stat(props: { label: string; value: number; alert?: boolean }) {
@@ -175,45 +177,77 @@ export function DashboardPage() {
     queryKey: ['dashboard'],
     queryFn: () => api.get<DashboardDto>('/api/dashboard'),
   });
+  // Empty = watch all; otherwise scope the whole dashboard to these projects.
+  const [selected, setSelected] = useState<string[]>([]);
+
+  if (!data) return null;
+
+  const visible = selected.length === 0 ? data.projects : data.projects.filter((p) => selected.includes(p.projectId));
+  const summary = {
+    totalProjects: visible.length,
+    highRiskCount: visible.filter((p) => p.risk?.quadrant === 'High').length,
+    overdueActivities: visible.reduce((a, p) => a + p.overdueCount, 0),
+    checksDueSoon: visible.reduce((a, p) => a + p.checksDueSoon, 0),
+    avgRealization: overallRealization(visible.map((p) => p.outcomes.realization)),
+  };
 
   return (
     <div className="mx-auto max-w-5xl p-8">
-      <header className="mb-6 flex items-end justify-between">
+      <header className="mb-4 flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-bold">Portfolio Dashboard</h1>
-          <p className="text-sm text-slate-500">Unified health view across all active projects.</p>
+          <p className="text-sm text-slate-500">Unified health view across active projects.</p>
         </div>
         <Link to="/" className="cmt-btn-secondary">
           ← All projects
         </Link>
       </header>
 
-      {data && (
-        <>
-          <div className="mb-6 flex gap-3">
-            <Stat label="Active projects" value={data.summary.totalProjects} />
-            <Stat label="High-risk projects" value={data.summary.highRiskCount} alert />
-            <Stat label="Overdue activities" value={data.summary.overdueActivities} alert />
-            <Stat label="Checks due in 14 days" value={data.summary.checksDueSoon} />
-            <PercentStat label="Avg benefit realized" value={data.summary.avgRealization} />
-          </div>
+      <div className="mb-6 flex items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Watching</span>
+        <div className="w-80">
+          <MultiSelect
+            options={data.projects.map((p) => ({ value: p.projectId, label: p.name }))}
+            selected={selected}
+            placeholder="All projects"
+            onChange={setSelected}
+          />
+        </div>
+        {selected.length > 0 && (
+          <button className="text-xs font-medium text-indigo-600 hover:underline" onClick={() => setSelected([])}>
+            Clear
+          </button>
+        )}
+      </div>
 
-          <div className="mb-6">
-            <SaturationHeatmap />
-          </div>
+      <div className="mb-6 flex gap-3">
+        <Stat label="Projects" value={summary.totalProjects} />
+        <Stat label="High-risk projects" value={summary.highRiskCount} alert />
+        <Stat label="Overdue activities" value={summary.overdueActivities} alert />
+        <Stat label="Checks due in 14 days" value={summary.checksDueSoon} />
+        <PercentStat label="Avg benefit realized" value={summary.avgRealization} />
+      </div>
 
+      <div className="mb-6">
+        <SaturationHeatmap projectIds={selected.length === 0 ? undefined : selected} />
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="cmt-card py-12 text-center text-sm text-slate-500">
           {data.projects.length === 0 ? (
-            <div className="cmt-card py-12 text-center text-sm text-slate-500">
+            <>
               No active projects. <Link to="/" className="text-indigo-600 hover:underline">Create one</Link> to see it here.
-            </div>
+            </>
           ) : (
-            <div className="space-y-4">
-              {data.projects.map((p) => (
-                <ProjectCard key={p.projectId} health={p} />
-              ))}
-            </div>
+            'No projects match the current filter.'
           )}
-        </>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {visible.map((p) => (
+            <ProjectCard key={p.projectId} health={p} />
+          ))}
+        </div>
       )}
     </div>
   );

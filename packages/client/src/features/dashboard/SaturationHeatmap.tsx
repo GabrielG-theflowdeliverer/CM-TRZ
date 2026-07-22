@@ -23,19 +23,22 @@ const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
  * group absorbs per month, summed over active projects, with a what-if that
  * re-sequences a project's go-live and recomputes the grid live (nothing saved).
  */
-export function SaturationHeatmap() {
+export function SaturationHeatmap({ projectIds }: { projectIds?: string[] } = {}) {
   const { data } = useSaturation();
   const [shifts, setShifts] = useState<Record<string, number>>({});
   const [selected, setSelected] = useState<{ group: string; month: string; cell: SaturationCellDto } | null>(null);
   const [reviewing, setReviewing] = useState(false);
 
   const anyShift = Object.values(shifts).some((v) => v !== 0);
+  const filtered = projectIds !== undefined;
   const rows = useMemo(() => {
     if (!data) return [];
-    if (!anyShift) return data.rows;
+    // A project filter (or any what-if shift) means recompute from the model.
+    if (!anyShift && !filtered) return data.rows;
+    const scoped = filtered ? data.projects.filter((p) => projectIds.includes(p.id)) : data.projects;
     const orgGroups = data.rows.map((r) => ({ id: r.orgGroupId, name: r.orgGroupName }));
-    return buildSaturationRows(data.months, orgGroups, data.projects, shifts);
-  }, [data, shifts, anyShift]);
+    return buildSaturationRows(data.months, orgGroups, scoped, shifts);
+  }, [data, shifts, anyShift, filtered, projectIds]);
 
   if (!data || data.rows.length === 0) {
     return (
