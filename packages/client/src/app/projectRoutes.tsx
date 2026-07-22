@@ -20,6 +20,7 @@ import { TrackingPage } from '../features/tracking/TrackingPage';
 import { CmPerformancePage, CmPerfReportPage } from '../features/tracking/CmPerformancePage';
 import { AdaptActionsPage } from '../features/tracking/AdaptActionsPage';
 import { ReferencePage } from '../features/reference/ReferencePage';
+import { OutcomesPage } from '../features/outcomes/OutcomesPage';
 
 export interface ProjectPageRoute {
   path: string;
@@ -53,6 +54,7 @@ export const PROJECT_PAGE_ROUTES: ProjectPageRoute[] = [
   { path: 'plans', element: <PlansPage /> },
   { path: 'plans/:planId', element: <PlanDetailPage /> },
   { path: 'tracking', element: <TrackingPage /> },
+  { path: 'outcomes', element: <OutcomesPage /> },
   { path: 'cm-performance', element: <CmPerformancePage /> },
   { path: 'cm-performance/:reportId', element: <CmPerfReportPage /> },
   { path: 'adapt-actions', element: <AdaptActionsPage /> },

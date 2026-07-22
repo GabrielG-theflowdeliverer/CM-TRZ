@@ -41,6 +41,7 @@ export const NAV_SECTIONS: Array<{ title: string; items: Array<{ to: string; lab
   {
     title: 'Phase 3 — Sustain Outcomes',
     items: [
+      { to: 'outcomes', label: 'Outcomes' },
       { to: 'cm-performance', label: 'CM Performance' },
       { to: 'adapt-actions', label: 'Adapt Actions' },
     ],
