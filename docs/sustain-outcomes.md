@@ -1,6 +1,11 @@
 # Sustain Outcomes (Prosci Phase 3) — design & plan
 
-**Status:** design agreed; domain foundation started (this PR). Feature will land in phased PRs.
+**Status: COMPLETE** (PRs #17–#27). Phases 1–6 shipped — domain calc, server module
+(migrations 009 objectives/metrics/measurements, 010 reinforcement), the Outcomes page,
+the portfolio benefit-realization view, a dashboard-wide project filter, the per-project
+and pooled (colour-by-project) readiness-vs-adoption correlation, and the Reinforcement
+workspace. CM Performance + Adapt Actions were re-homed into the new Phase 3 nav section.
+Transfer-of-ownership remains the one deferred (YAGNI) activity.
 
 ## Context
 
