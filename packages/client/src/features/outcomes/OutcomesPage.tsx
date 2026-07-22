@@ -11,6 +11,7 @@ import type { GroupDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroups } from '../impact/useGroups';
 import { useOutcomeMutations, useOutcomes, type MetricDto, type ObjectiveDto } from './useOutcomes';
+import { CorrelationPanel } from './CorrelationPanel';
 
 const LEVEL_LABELS: Record<string, string> = {
   organization: 'Organizational',
@@ -108,6 +109,8 @@ export function OutcomesPage() {
       {data.objectives.map((objective) => (
         <ObjectiveCard key={objective.id} objective={objective} groups={groups ?? []} m={m} />
       ))}
+
+      {data.objectives.length > 0 && <CorrelationPanel objectives={data.objectives} groups={groups ?? []} />}
     </div>
   );
 }
