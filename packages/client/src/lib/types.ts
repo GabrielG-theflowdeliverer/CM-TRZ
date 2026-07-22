@@ -114,5 +114,13 @@ export interface DashboardDto {
     avgRealization: number | null;
   };
   projects: ProjectHealthDto[];
+  correlationPoints: Array<{
+    projectId: string;
+    projectName: string;
+    group: string;
+    adkar: number | null;
+    adoption: number | null;
+    barrier: string | null;
+  }>;
   generatedAt: string;
 }

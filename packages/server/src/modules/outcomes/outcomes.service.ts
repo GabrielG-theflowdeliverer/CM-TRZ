@@ -51,6 +51,18 @@ export function listMetricRealizations(db: Db, projectId: string): Array<{ kind:
   }));
 }
 
+/** Per impacted group, the mean realization of its adoption metrics (for the correlation view). */
+export function adoptionByGroup(db: Db, projectId: string): Map<string, number | null> {
+  const buckets = new Map<string, Array<number | null>>();
+  for (const metric of repo.listMetricsForProject(db, projectId)) {
+    if (metric.kind === 'adoption' && metric.groupId) {
+      const pct = metricRealization(metric, repo.listMeasurements(db, metric.id)).pct;
+      (buckets.get(metric.groupId) ?? buckets.set(metric.groupId, []).get(metric.groupId)!).push(pct);
+    }
+  }
+  return new Map([...buckets].map(([id, pcts]) => [id, overallRealization(pcts)]));
+}
+
 // ---- Objectives
 export function createObjective(db: Db, projectId: string, input: { level: string; statement: string; notes?: string | null }): Objective {
   getProject(db, projectId);

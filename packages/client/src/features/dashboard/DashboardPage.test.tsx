@@ -32,6 +32,7 @@ const health = (over: Partial<ProjectHealthDto> = {}): ProjectHealthDto => ({
 const dashboard = (projects: ProjectHealthDto[]): DashboardDto => ({
   summary: { totalProjects: projects.length, highRiskCount: 0, overdueActivities: 0, checksDueSoon: 0, avgRealization: 72 },
   projects,
+  correlationPoints: [{ projectId: 'p1', projectName: 'CRM Rollout', group: 'Sales', adkar: 4, adoption: 80, barrier: null }],
   generatedAt: 'x',
 });
 
