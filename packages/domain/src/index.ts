@@ -38,3 +38,4 @@ export * from './entities/tracking.js';
 export * from './entities/docs.js';
 export * from './entities/survey.js';
 export * from './entities/outcomes.js';
+export * from './entities/reinforcement.js';

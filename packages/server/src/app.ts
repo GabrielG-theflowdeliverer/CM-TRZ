@@ -27,6 +27,7 @@ import { createProjectShareRouter, createShareViewRouter } from './modules/share
 import { createShareBrowseRouter } from './modules/share/share-browse.router.js';
 import { createOrgGroupsRouter } from './modules/org-groups/org-groups.router.js';
 import { createOutcomesRouter, createProjectOutcomesRouter } from './modules/outcomes/outcomes.router.js';
+import { createProjectReinforcementRouter, createReinforcementRouter } from './modules/reinforcement/reinforcement.router.js';
 
 /** Composition root: wires every feature module onto the /api surface. */
 export function createApp(db: Db): Express {
@@ -55,6 +56,7 @@ export function createApp(db: Db): Express {
   app.use('/api/projects/:projectId/dashboard', createProjectDashboardRouter(db));
   app.use('/api/projects/:projectId/surveys', createProjectSurveysRouter(db));
   app.use('/api/projects/:projectId', createProjectOutcomesRouter(db));
+  app.use('/api/projects/:projectId/reinforcement-actions', createProjectReinforcementRouter(db));
   app.use('/api/projects/:projectId/share', createProjectShareRouter(db));
   app.use('/api/projects/:projectId/export', createProjectExportRouter(db));
   app.use('/api/projects/:projectId', createProjectTrackingRouter(db));
@@ -83,6 +85,7 @@ export function createApp(db: Db): Express {
   app.use('/api/dashboard', createDashboardRouter(db));
   app.use('/api/org-groups', createOrgGroupsRouter(db));
   app.use('/api', createOutcomesRouter(db));
+  app.use('/api/reinforcement-actions', createReinforcementRouter(db));
 
   // Public survey capture — the only respondent-facing surface, token-scoped,
   // exposes nothing about the project beyond the single survey behind the token.
