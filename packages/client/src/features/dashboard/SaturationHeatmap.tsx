@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { buildSaturationRows, shiftMonth, type SaturationBand } from '@cmt/domain';
 import { useSaturation, type SaturationCellDto } from './useSaturation';
+import { RescheduleDialog } from './RescheduleDialog';
 
 const BAND_STYLES: Record<SaturationBand, string> = {
   ok: 'bg-emerald-50 text-emerald-800',
@@ -26,6 +27,7 @@ export function SaturationHeatmap() {
   const { data } = useSaturation();
   const [shifts, setShifts] = useState<Record<string, number>>({});
   const [selected, setSelected] = useState<{ group: string; month: string; cell: SaturationCellDto } | null>(null);
+  const [reviewing, setReviewing] = useState(false);
 
   const anyShift = Object.values(shifts).some((v) => v !== 0);
   const rows = useMemo(() => {
@@ -114,9 +116,22 @@ export function SaturationHeatmap() {
           <div className="mb-1 flex items-center justify-between">
             <h4 className="text-sm font-semibold">Re-sequencing (what-if)</h4>
             {anyShift && (
-              <button type="button" className="text-xs font-medium text-indigo-600 hover:underline" onClick={() => setShifts({})}>
-                Reset
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  className="text-xs font-medium text-indigo-600 hover:underline"
+                  onClick={() => setReviewing(true)}
+                >
+                  Review &amp; save…
+                </button>
+                <button
+                  type="button"
+                  className="text-xs font-medium text-slate-500 hover:underline"
+                  onClick={() => setShifts({})}
+                >
+                  Reset
+                </button>
+              </div>
             )}
           </div>
           <p className="mb-2 text-xs text-slate-500">
@@ -148,6 +163,23 @@ export function SaturationHeatmap() {
             })}
           </div>
         </div>
+      )}
+
+      {reviewing && (
+        <RescheduleDialog
+          projects={data.projects}
+          shifts={shifts}
+          onClose={() => setReviewing(false)}
+          onApplied={(appliedIds) => {
+            // Drop the applied shifts (now real); keep any unapplied what-ifs.
+            setShifts((s) => {
+              const next = { ...s };
+              for (const id of appliedIds) delete next[id];
+              return next;
+            });
+            setReviewing(false);
+          }}
+        />
       )}
     </div>
   );

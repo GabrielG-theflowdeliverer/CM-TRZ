@@ -36,6 +36,7 @@ const payload = (): SaturationDto => ({
       endMonth: '2026-12',
       goliveMonth: '2026-09',
       groups: [{ orgGroupId: 'og1', degree: 4 }],
+      roadmap: { kickoffDate: '2026-06-01', goliveDate: '2026-09-15', outcomesDate: '2026-12-01' },
     },
     {
       id: 'p2',
@@ -44,6 +45,7 @@ const payload = (): SaturationDto => ({
       endMonth: '2027-01',
       goliveMonth: '2026-09',
       groups: [{ orgGroupId: 'og1', degree: 4 }],
+      roadmap: { kickoffDate: '2026-09-01', goliveDate: '2026-09-20', outcomesDate: '2027-01-15' },
     },
   ],
   unlinkedGroupCount: 2,

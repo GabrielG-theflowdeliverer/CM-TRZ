@@ -4,10 +4,15 @@ import { api } from '../../lib/api';
 
 export type { SaturationGridCell as SaturationCellDto } from '@cmt/domain';
 
+/** Compute model + the raw roadmap dates the review dialog edits. */
+export type SaturationProjectDto = SaturationProject & {
+  roadmap: { kickoffDate: string | null; goliveDate: string | null; outcomesDate: string | null };
+};
+
 export interface SaturationDto {
   months: string[];
   rows: SaturationGridRow[];
-  projects: SaturationProject[];
+  projects: SaturationProjectDto[];
   unlinkedGroupCount: number;
 }
 
