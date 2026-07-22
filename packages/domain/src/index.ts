@@ -22,6 +22,7 @@ export * from './calc/progress.js';
 export * from './calc/health.js';
 export * from './calc/aggregate.js';
 export * from './calc/saturation.js';
+export * from './calc/outcomes.js';
 
 // Entities (types + zod schemas)
 export * from './entities/common.js';
@@ -36,3 +37,4 @@ export * from './entities/roadmap.js';
 export * from './entities/tracking.js';
 export * from './entities/docs.js';
 export * from './entities/survey.js';
+export * from './entities/outcomes.js';
