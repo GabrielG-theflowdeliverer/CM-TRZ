@@ -23,7 +23,7 @@ export default defineConfig({
       reporter: ['text-summary'],
       // The weak layer (many legacy pages untested). Floors just below current;
       // ratchet up ~5 points per page-test backfill PR (see docs/test-coverage.md).
-      thresholds: { statements: 52, branches: 80, functions: 60, lines: 52 },
+      thresholds: { statements: 60, branches: 82, functions: 62, lines: 60 },
     },
   },
 } as never);
