@@ -196,7 +196,6 @@ export function getDashboard(db: Db): DashboardPayload {
   const today = todayIso();
   const allProjects = projects.listProjects(db).filter((p) => p.status === 'Active');
   const healths: ProjectHealth[] = [];
-  const allCheckDates: Array<{ date: string | null }> = [];
 
   for (const project of allProjects) {
     const latestPct = assessments.latestAssessment(db, project.id, 'pct');
@@ -235,9 +234,10 @@ export function getDashboard(db: Db): DashboardPayload {
         `SELECT scheduled_date, description, completed_date FROM tracking_entries WHERE project_id = ? AND scheduled_date IS NOT NULL`,
       )
       .all(project.id) as Array<{ scheduled_date: string; description: string | null; completed_date: string | null }>;
+    const incompleteCheckDates: string[] = [];
     for (const c of checks) {
       upcomingDates.push({ date: c.scheduled_date, label: c.description ?? 'Status check' });
-      if (!c.completed_date) allCheckDates.push({ date: c.scheduled_date });
+      if (!c.completed_date) incompleteCheckDates.push(c.scheduled_date);
     }
 
     const input: ProjectHealthInput = {
@@ -260,12 +260,13 @@ export function getDashboard(db: Db): DashboardPayload {
       latestCmPerfStatus: (latestCmPerfStatus as CmPerfStatus | null) ?? null,
       upcomingDates,
       outcomeMetrics: outcomes.listMetricRealizations(db, project.id),
+      incompleteCheckDates,
     };
     healths.push(buildProjectHealth(input, today));
   }
 
   return {
-    summary: buildPortfolioSummary(healths, allCheckDates, today),
+    summary: buildPortfolioSummary(healths),
     projects: healths,
     generatedAt: today,
   };

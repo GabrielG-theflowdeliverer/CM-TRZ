@@ -28,7 +28,12 @@ export interface ProjectHealthInput {
   upcomingDates: Array<{ date: string; label: string }>;
   /** Each outcome metric's realization % (null = not yet measurable), for the portfolio rollup. */
   outcomeMetrics: Array<{ kind: 'adoption' | 'benefit'; pct: number | null }>;
+  /** Scheduled dates of this project's incomplete status checks. */
+  incompleteCheckDates: string[];
 }
+
+/** Window (days) for "checks due soon" on the portfolio dashboard. */
+export const CHECK_WINDOW_DAYS = 14;
 
 /** Benefit/adoption realization rolled up for the portfolio dashboard. */
 export interface OutcomeHealth {
@@ -55,6 +60,8 @@ export interface ProjectHealth {
   latestCmPerfStatus: CmPerfStatus | null;
   nextMilestone: { date: string; label: string } | null;
   outcomes: OutcomeHealth;
+  /** This project's incomplete status checks due within CHECK_WINDOW_DAYS. */
+  checksDueSoon: number;
 }
 
 /** Roll a project's metric realizations into overall / adoption / benefit figures. */
@@ -96,6 +103,7 @@ export function buildProjectHealth(input: ProjectHealthInput, today: string): Pr
     latestCmPerfStatus: input.latestCmPerfStatus,
     nextMilestone: upcoming[0] ?? null,
     outcomes: outcomeHealth(input.outcomeMetrics),
+    checksDueSoon: input.incompleteCheckDates.filter((d) => isUpcoming(d, today, CHECK_WINDOW_DAYS)).length,
   };
 }
 
@@ -158,17 +166,14 @@ export interface PortfolioSummary {
   avgRealization: number | null;
 }
 
-export function buildPortfolioSummary(
-  projects: ProjectHealth[],
-  checkDates: Array<{ date: string | null }>,
-  today: string,
-  windowDays = 14,
-): PortfolioSummary {
+/** Portfolio rollup — pure over the project healths, so a filtered subset
+ *  re-summarises correctly with no extra inputs. */
+export function buildPortfolioSummary(projects: ProjectHealth[]): PortfolioSummary {
   return {
     totalProjects: projects.length,
     highRiskCount: projects.filter((p) => p.risk?.quadrant === 'High').length,
     overdueActivities: projects.reduce((acc, p) => acc + p.overdueCount, 0),
-    checksDueSoon: checkDates.filter((c) => isUpcoming(c.date, today, windowDays)).length,
+    checksDueSoon: projects.reduce((acc, p) => acc + p.checksDueSoon, 0),
     avgRealization: overallRealization(projects.map((p) => p.outcomes.realization)),
   };
 }

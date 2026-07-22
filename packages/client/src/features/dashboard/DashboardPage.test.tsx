@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { api } from '../../lib/api';
 import { renderWithClient } from '../../test/harness';
 import type { DashboardDto, ProjectHealthDto } from '../../lib/types';
@@ -24,6 +25,7 @@ const health = (over: Partial<ProjectHealthDto> = {}): ProjectHealthDto => ({
   latestCmPerfStatus: null,
   nextMilestone: null,
   outcomes: { realization: 72, adoption: 80, benefit: 64, metricCount: 3, measuredCount: 3 },
+  checksDueSoon: 0,
   ...over,
 });
 
@@ -68,6 +70,24 @@ describe('DashboardPage', () => {
     expect(screen.getByText('CRM Rollout')).toBeInTheDocument();
     expect(screen.getAllByText('Benefit realized')).toHaveLength(3);
     expect(screen.getByText(/adoption 80% · benefit 64%/)).toBeInTheDocument();
+  });
+
+  it('scopes the dashboard to the selected projects', async () => {
+    const projects = [health(), health({ projectId: 'p2', name: 'ERP Migration' })];
+    mockGet(dashboard(projects));
+    renderDashboard();
+
+    await screen.findByText('Avg benefit realized');
+    // Both project cards present (cards are links; dropdown options are checkboxes).
+    expect(screen.getByRole('link', { name: 'CRM Rollout' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'ERP Migration' })).toBeInTheDocument();
+
+    // Filter to ERP only.
+    await userEvent.click(screen.getByRole('button', { name: 'All projects' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'ERP Migration' }));
+
+    expect(screen.queryByRole('link', { name: 'CRM Rollout' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'ERP Migration' })).toBeInTheDocument();
   });
 
   it('shows the no-metrics state for a project without outcomes', async () => {
