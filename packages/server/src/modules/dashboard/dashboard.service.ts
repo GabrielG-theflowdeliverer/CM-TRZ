@@ -27,9 +27,21 @@ import * as activities from '../activities/activities.service.js';
 import * as orgGroups from '../org-groups/org-groups.service.js';
 import * as outcomes from '../outcomes/outcomes.service.js';
 
+/** One impacted group's ADKAR readiness vs adoption realization, for the pooled correlation view. */
+export interface CorrelationPointDto {
+  projectId: string;
+  projectName: string;
+  group: string;
+  adkar: number | null;
+  adoption: number | null;
+  barrier: string | null;
+}
+
 export interface DashboardPayload {
   summary: ReturnType<typeof buildPortfolioSummary>;
   projects: ProjectHealth[];
+  /** Every impacted group (across projects) that has adoption metrics — the correlation scatter. */
+  correlationPoints: CorrelationPointDto[];
   generatedAt: string;
 }
 
@@ -196,11 +208,28 @@ export function getDashboard(db: Db): DashboardPayload {
   const today = todayIso();
   const allProjects = projects.listProjects(db).filter((p) => p.status === 'Active');
   const healths: ProjectHealth[] = [];
+  const correlationPoints: CorrelationPointDto[] = [];
 
   for (const project of allProjects) {
     const latestPct = assessments.latestAssessment(db, project.id, 'pct');
     const latestRisk = assessments.latestAssessment(db, project.id, 'risk');
     const groups = impact.listGroups(db, project.id);
+
+    // Correlation points: groups with adoption metrics — ADKAR readiness vs adoption.
+    const adoptionByGrp = outcomes.adoptionByGroup(db, project.id);
+    for (const g of groups) {
+      const adoption = adoptionByGrp.get(g.id);
+      if (adoption === undefined) continue;
+      const adkarVals = Object.values(g.adkar).filter((v): v is number => typeof v === 'number');
+      correlationPoints.push({
+        projectId: project.id,
+        projectName: project.name,
+        group: g.name,
+        adkar: adkarVals.length ? adkarVals.reduce((a, b) => a + b, 0) / adkarVals.length : null,
+        adoption,
+        barrier: g.computed.barrierPoint,
+      });
+    }
 
     // Unified activities: each counts once no matter how many plans/blueprints link it.
     const activityStatuses = (
@@ -268,6 +297,7 @@ export function getDashboard(db: Db): DashboardPayload {
   return {
     summary: buildPortfolioSummary(healths),
     projects: healths,
+    correlationPoints,
     generatedAt: today,
   };
 }

@@ -86,6 +86,21 @@ describe('outcomes', () => {
     expect(body.realization).toBe(50); // mean(40, 60), the unmeasured metric ignored
   });
 
+  it('surfaces per-group ADKAR-vs-adoption correlation points on the portfolio dashboard', async () => {
+    const objId = await objective();
+    const { body: group } = await request(ctx.app).post(`/api/projects/${projectId}/groups`).send({ name: 'Sales' }).expect(201);
+    await request(ctx.app).put(`/api/groups/${group.id}/adkar`).send({ 'adkar.awareness': 5, 'adkar.desire': 3 }).expect(200);
+    const { body: metric } = await request(ctx.app)
+      .post(`/api/objectives/${objId}/metrics`)
+      .send({ kind: 'adoption', name: 'Utilization', baseline: 0, target: 100, adoptionMeasure: 'utilization', groupId: group.id })
+      .expect(201);
+    await request(ctx.app).post(`/api/metrics/${metric.id}/measurements`).send({ date: '2026-06-01', value: 70 }).expect(201);
+
+    const { body: dash } = await request(ctx.app).get('/api/dashboard').expect(200);
+    const point = dash.correlationPoints.find((p: { group: string }) => p.group === 'Sales');
+    expect(point).toMatchObject({ projectName: 'P', adkar: 4, adoption: 70 }); // adkar mean(5,3); adoption 70/100
+  });
+
   it('404s an unknown objective/metric/measurement', async () => {
     await request(ctx.app).patch('/api/objectives/nope').send({ statement: 'x' }).expect(404);
     await request(ctx.app).delete('/api/metrics/nope').expect(404);

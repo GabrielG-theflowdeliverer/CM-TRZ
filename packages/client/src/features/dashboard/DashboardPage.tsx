@@ -7,6 +7,7 @@ import type { DashboardDto, ProjectHealthDto } from '../../lib/types';
 import { BandChip, RiskBadge } from '../../ui/scores';
 import { MultiSelect } from '../../ui/MultiSelect';
 import { SaturationHeatmap } from './SaturationHeatmap';
+import { CorrelationScatter } from '../outcomes/CorrelationScatter';
 
 function Stat(props: { label: string; value: number; alert?: boolean }) {
   return (
@@ -183,6 +184,8 @@ export function DashboardPage() {
   if (!data) return null;
 
   const visible = selected.length === 0 ? data.projects : data.projects.filter((p) => selected.includes(p.projectId));
+  const correlationPoints =
+    selected.length === 0 ? data.correlationPoints : data.correlationPoints.filter((p) => selected.includes(p.projectId));
   const summary = {
     totalProjects: visible.length,
     highRiskCount: visible.filter((p) => p.risk?.quadrant === 'High').length,
@@ -231,6 +234,23 @@ export function DashboardPage() {
       <div className="mb-6">
         <SaturationHeatmap projectIds={selected.length === 0 ? undefined : selected} />
       </div>
+
+      <section className="cmt-card mb-6 space-y-2">
+        <div>
+          <h3 className="font-semibold">Readiness vs adoption</h3>
+          <p className="text-xs text-slate-500">
+            Each dot is an impacted group across your projects — ADKAR readiness (leading) against adoption
+            realization (lagging). A directional signal for conversations, not proof of cause.
+          </p>
+        </div>
+        {correlationPoints.length === 0 ? (
+          <p className="py-4 text-center text-sm text-slate-400">
+            No groups with adoption metrics yet — define adoption metrics on projects’ Outcomes pages.
+          </p>
+        ) : (
+          <CorrelationScatter points={correlationPoints} showProject />
+        )}
+      </section>
 
       {visible.length === 0 ? (
         <div className="cmt-card py-12 text-center text-sm text-slate-500">
