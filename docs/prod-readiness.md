@@ -78,12 +78,22 @@ respondents. Test-covered in `surveys.test.ts`.
 *Note:* backups retain PII until they rotate out — a hard erasure also clears
 `/data/backups` (documented).
 
-## 4. Encryption at rest — **medium** · ⬜
+## 4. Encryption at rest — **medium** · ✅
 
 **Why.** The SQLite file on the Fly volume holds the PII above in plaintext.
 Options: SQLCipher (better-sqlite3 build swap — non-trivial) vs. relying on Fly
 volume encryption + tight access. Pick one deliberately.
-*Acceptance:* a documented decision; if implemented, a restore drill still passes.
+
+**Done (decision + the one real gap closed):** on-volume DB + backups rely on
+**Fly's default volume encryption** — SQLCipher rejected as YAGNI (key would live
+on the same host; native-build + backup complexity for little marginal benefit).
+The genuine exposure was the **weekly off-Fly backup**, which pulled a *plaintext*
+PII database into a GitHub artifact for 90 days. `backup.yml` now **AES-256
+encrypts it** (`openssl enc`, key = `BACKUP_ENCRYPTION_KEY` secret) before upload
+and refuses to upload if the key is unset — so a plaintext DB can never leave the
+encrypted volume. Decision + decrypt/restore documented in `docs/data-handling.md`;
+secret setup in `docs/deploy-runbook.md`. The app's on-volume restore-drill test
+is unaffected (on-volume backups stay plaintext on the encrypted volume).
 
 ## 5. End-to-end smoke test — **medium** · ⬜
 

@@ -33,6 +33,34 @@ shadow copy of a person's results to clean up.
   (`connect-src 'self'`) and `Referrer-Policy: no-referrer` keep tokens and data
   from leaking outward.
 
+## Encryption at rest
+
+**Decision.** The live database and its on-machine `/data/backups` are protected
+by **Fly's volume encryption at rest** (volumes are encrypted by default). We do
+**not** add application-level DB encryption (e.g. SQLCipher): for a single-user
+instance the key would have to live on the same machine as the data (a Fly
+secret / env var), so it adds little over volume encryption while bringing a
+native-build burden and backup/restore complexity — YAGNI for this threat model.
+
+The one place data leaves the encrypted volume is the **weekly off-Fly backup**
+(`.github/workflows/backup.yml`), which lands as a GitHub artifact. That copy
+**is** encrypted — AES-256 via `openssl enc` before upload, keyed by the
+`BACKUP_ENCRYPTION_KEY` GitHub secret (held separately from the data). The
+workflow refuses to upload if that secret is missing, so a plaintext database
+can never leave. To restore from it:
+
+```
+openssl enc -d -aes-256-cbc -pbkdf2 -in proxima-backup.db.enc \
+  -out proxima-backup.db -pass env:BACKUP_ENCRYPTION_KEY
+```
+
+then point the server at the decrypted file (or drop it in as `/data/proxima.db`
+and reboot — the app boots off a backup file; see `infra/backup.ts`).
+
+> Set the secret once: `gh secret set BACKUP_ENCRYPTION_KEY --body "$(openssl rand -hex 32)"`
+> and keep that value somewhere safe — losing it makes existing off-Fly
+> artifacts unrecoverable.
+
 ## Retention & erasure
 
 Data is kept until explicitly removed. There is no automatic expiry of stored
