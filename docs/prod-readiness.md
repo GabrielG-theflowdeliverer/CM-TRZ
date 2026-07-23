@@ -95,12 +95,19 @@ encrypted volume. Decision + decrypt/restore documented in `docs/data-handling.m
 secret setup in `docs/deploy-runbook.md`. The app's on-volume restore-drill test
 is unaffected (on-volume backups stay plaintext on the encrypted volume).
 
-## 5. End-to-end smoke test — **medium** · ⬜
+## 5. End-to-end smoke test — **medium** · ✅
 
 **Why.** Unit/integration coverage is strong, but the respondent→practitioner
 journey (the one flow crossing the public boundary) has no full-stack test.
-*Acceptance:* one Playwright journey — practitioner opens a campaign → respondent
-submits via token → aggregated result appears on the assessment.
+
+**Done:** Playwright smoke in `e2e/` drives the journey against the **production
+server** (built SPA + API on one origin, auth off): seed a campaign via API →
+respondent fills and submits the tokened `/s/:token` survey in the browser →
+practitioner opens the assessment run and sees `1/1 submitted` with the
+respondent marked Submitted. Run with `npm run e2e`. Wired as a **separate,
+non-gating** CI job (`.github/workflows/e2e.yml`) — it installs a browser and
+boots the app, so it stays off the required `check` gate (a signal, not a merge
+blocker) and isn't named "CI" so it won't trigger the deploy workflow.
 
 ## 6. Observability — **medium** · ⬜
 
