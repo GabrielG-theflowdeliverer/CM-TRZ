@@ -32,6 +32,7 @@ import { createProjectReinforcementRouter, createReinforcementRouter } from './m
 import { createProjectTransferRouter, createTransferRouter } from './modules/transfer-ownership/transfer-ownership.router.js';
 import { createAuthRouter } from './modules/auth/auth.router.js';
 import { requireEditor, type AuthConfig } from './infra/auth.js';
+import { requestLogger } from './infra/log.js';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 
@@ -104,6 +105,9 @@ export function createApp(db: Db, opts: { auth?: AuthConfig } = {}): Express {
       frameguard: { action: 'deny' },
     }),
   );
+
+  // One structured log line per completed request (skips the health probe).
+  app.use(requestLogger());
 
   app.use(express.json({ limit: '20mb' }));
 

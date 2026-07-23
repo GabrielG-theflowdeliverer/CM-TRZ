@@ -109,12 +109,21 @@ non-gating** CI job (`.github/workflows/e2e.yml`) — it installs a browser and
 boots the app, so it stays off the required `check` gate (a signal, not a merge
 blocker) and isn't named "CI" so it won't trigger the deploy workflow.
 
-## 6. Observability — **medium** · ⬜
+## 6. Observability — **medium** · ✅
 
 **Why.** No structured logs or error aggregation. Fly restarts a dead process,
 but a silent 500 loop is invisible.
-*Acceptance:* structured request/error logging; a way to see errors after the
-6-second client toast has vanished.
+
+**Done:** a dependency-free structured logger (`infra/log.ts`) emitting one JSON
+line per event (stdout for info/warn, stderr for error), so `fly logs` stays
+greppable. `requestLogger()` logs method/path/status/ms per completed request
+(skipping the 30s health probe); the `errorHandler` now logs unexpected 500s
+with request context (method/path/status/message/stack) — so a failure is
+visible long after the client's 6s toast vanishes, without ever leaking the
+stack to the client. Level is `CMT_LOG_LEVEL` (default `info`); a vitest setup
+file sets `silent` to keep the suite quiet. Unit-tested in `test/log.test.ts`.
+*Beyond scope (YAGNI for one instance):* shipping logs to an external
+aggregator. `fly logs` + structured lines is the right altitude here.
 
 ## 7. Accessibility (WCAG) — **low** · ⬜
 
