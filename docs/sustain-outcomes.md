@@ -5,7 +5,8 @@
 the portfolio benefit-realization view, a dashboard-wide project filter, the per-project
 and pooled (colour-by-project) readiness-vs-adoption correlation, and the Reinforcement
 workspace. CM Performance + Adapt Actions were re-homed into the new Phase 3 nav section.
-Transfer-of-ownership remains the one deferred (YAGNI) activity.
+Transfer-of-ownership (migration 011 `transfer_items`, the Transfer of Ownership page) shipped
+later as the closing handoff checklist — Phase 3 is now methodologically complete.
 
 ## Context
 
@@ -30,7 +31,7 @@ Add **Phase 3 — Sustain Outcomes** as the third nav section (mirroring Phases 
 | Review / document performance | **Outcomes** (new): adoption + benefit metrics, realization, leading→lagging correlation |
 | Activate sustainment (reinforcement) | **Reinforcement & Sustainment** (new); **Adapt Actions moves here** |
 | Document performance | **CM Performance** moves here from Phase 2 |
-| Transfer ownership | Lightweight checklist — deferred (YAGNI for v1) |
+| Transfer ownership | **Transfer of Ownership** (new): a lightweight handoff checklist — responsibilities → permanent owner, done-when-confirmed, derived progress |
 
 Outcomes and reinforcement are a **loop**: Outcomes surfaces where adoption/benefit is
 slipping → ADKAR's Reinforcement element + the correlation panel explain it → Reinforcement

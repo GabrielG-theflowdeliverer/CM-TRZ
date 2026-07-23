@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { SurveyCampaign, SurveyCampaignSummary } from '@cmt/domain';
+import type { SurveyCampaign, SurveyCampaignSummary, SurveyRecipient } from '@cmt/domain';
 import { api } from '../../lib/api';
 import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
 
@@ -54,6 +54,20 @@ export function useCreateCampaign(projectId: string, assessmentId: string) {
       invalidateCaches(['campaigns', projectId]);
       void queryClient.invalidateQueries({ queryKey: ['assessment', assessmentId] });
     },
+  });
+}
+
+/**
+ * Re-issue a single recipient's link (fresh token + expiry) without touching
+ * the others — for when one link lapses or is lost. Refreshes the campaign so
+ * the new token/expiry show immediately.
+ */
+export function useRegenerateRecipientLink(campaignId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (recipientId: string) =>
+      api.post<SurveyRecipient>(`/api/survey-recipients/${recipientId}/regenerate`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaign', campaignId] }),
   });
 }
 

@@ -49,6 +49,11 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
+/** An ISO timestamp `days` from now — used for opaque-token expiry. */
+export function isoInDays(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
 export function today(): string {
   return new Date().toISOString().slice(0, 10);
 }

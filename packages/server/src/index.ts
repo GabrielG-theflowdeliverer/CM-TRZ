@@ -5,6 +5,31 @@ import { fileURLToPath } from 'node:url';
 import { openDb } from './infra/db.js';
 import { backupDb } from './infra/backup.js';
 import { createApp } from './app.js';
+import { SESSION_TTL_SECONDS, type AuthConfig } from './infra/auth.js';
+
+// Single-editor auth is enabled only when BOTH secrets are present. Setting one
+// without the other is a misconfiguration (fail loud rather than run half-open);
+// setting neither runs the API open — fine for localhost, a warning otherwise.
+function resolveAuth(): AuthConfig | undefined {
+  const sessionSecret = process.env.CMT_SESSION_SECRET;
+  const passwordHash = process.env.CMT_EDITOR_PASSWORD_HASH;
+  if (sessionSecret && passwordHash) {
+    return {
+      sessionSecret,
+      passwordHash,
+      secure: process.env.CMT_INSECURE_COOKIES !== '1',
+      ttlSeconds: SESSION_TTL_SECONDS,
+    };
+  }
+  if (sessionSecret || passwordHash) {
+    throw new Error('Auth misconfigured: set BOTH CMT_SESSION_SECRET and CMT_EDITOR_PASSWORD_HASH, or neither.');
+  }
+  console.warn(
+    '⚠  Running WITHOUT authentication — the entire API is open. Set CMT_SESSION_SECRET and ' +
+      'CMT_EDITOR_PASSWORD_HASH before exposing this server to a network.',
+  );
+  return undefined;
+}
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dbFile = process.env.CMT_DB_FILE ?? path.join(here, '..', 'data', 'proxima.db');
@@ -27,7 +52,7 @@ if (dbFile !== ':memory:') {
   }
 }
 
-const app = createApp(db);
+const app = createApp(db, { auth: resolveAuth() });
 
 // In production, serve the built client alongside the API.
 const clientDist = path.join(here, '..', '..', 'client', 'dist');

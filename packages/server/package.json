@@ -6,6 +6,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "backup": "tsx src/backup-cli.ts",
+    "hash-password": "tsx src/hash-password.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "coverage": "vitest run --coverage"
@@ -14,6 +15,7 @@
     "@cmt/domain": "*",
     "better-sqlite3": "^12.2.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.6.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

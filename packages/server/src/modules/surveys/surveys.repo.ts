@@ -15,6 +15,7 @@ export interface RecipientRow {
   person_name: string;
   token: string;
   submitted_at: string | null;
+  expires_at: string | null;
   role_name: string | null;
 }
 
@@ -29,11 +30,43 @@ export function insertCampaign(
 
 export function insertRecipient(
   db: Db,
-  r: { id: string; campaignId: string; roleId: string; personName: string; token: string },
+  r: { id: string; campaignId: string; roleId: string; personName: string; token: string; expiresAt: string | null },
 ): void {
   db.prepare(
-    `INSERT INTO survey_recipients (id, campaign_id, role_id, person_name, token) VALUES (?, ?, ?, ?, ?)`,
-  ).run(r.id, r.campaignId, r.roleId, r.personName, r.token);
+    `INSERT INTO survey_recipients (id, campaign_id, role_id, person_name, token, expires_at) VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(r.id, r.campaignId, r.roleId, r.personName, r.token, r.expiresAt);
+}
+
+export function getRecipientRow(db: Db, id: string): RecipientRow | null {
+  return (
+    (db
+      .prepare(
+        `SELECT sr.*, r.role_name
+           FROM survey_recipients sr
+           LEFT JOIN roles r ON r.id = sr.role_id
+          WHERE sr.id = ?`,
+      )
+      .get(id) as RecipientRow | undefined) ?? null
+  );
+}
+
+/** The project a recipient belongs to (via its campaign), for scoping checks. */
+export function getRecipientProjectId(db: Db, id: string): string | null {
+  const row = db
+    .prepare(
+      `SELECT sc.project_id FROM survey_recipients sr
+         JOIN survey_campaigns sc ON sc.id = sr.campaign_id
+        WHERE sr.id = ?`,
+    )
+    .get(id) as { project_id: string } | undefined;
+  return row ? row.project_id : null;
+}
+
+/** Re-issue one recipient's link: a fresh token and a fresh expiry. */
+export function regenerateRecipientToken(db: Db, id: string, token: string, expiresAt: string | null): boolean {
+  return db
+    .prepare('UPDATE survey_recipients SET token = ?, expires_at = ? WHERE id = ?')
+    .run(token, expiresAt, id).changes > 0;
 }
 
 export function getCampaignRow(db: Db, id: string): CampaignRow | null {
@@ -76,13 +109,15 @@ export interface RecipientByTokenRow {
   submitted_at: string | null;
   assessment_type: string;
   assessment_label: string | null;
+  /** Recipient link expiry; null = never expires. */
+  expires_at: string | null;
 }
 
 export function getRecipientByToken(db: Db, token: string): RecipientByTokenRow | null {
   return (
     (db
       .prepare(
-        `SELECT sr.id, sr.person_name, sr.submitted_at, a.type AS assessment_type, a.label AS assessment_label
+        `SELECT sr.id, sr.person_name, sr.submitted_at, sr.expires_at, a.type AS assessment_type, a.label AS assessment_label
            FROM survey_recipients sr
            JOIN survey_campaigns sc ON sc.id = sr.campaign_id
            JOIN assessments a ON a.id = sc.assessment_id

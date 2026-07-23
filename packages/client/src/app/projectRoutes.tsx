@@ -22,6 +22,7 @@ import { AdaptActionsPage } from '../features/tracking/AdaptActionsPage';
 import { ReferencePage } from '../features/reference/ReferencePage';
 import { OutcomesPage } from '../features/outcomes/OutcomesPage';
 import { ReinforcementPage } from '../features/reinforcement/ReinforcementPage';
+import { TransferOwnershipPage } from '../features/transfer-ownership/TransferOwnershipPage';
 
 export interface ProjectPageRoute {
   path: string;
@@ -60,5 +61,6 @@ export const PROJECT_PAGE_ROUTES: ProjectPageRoute[] = [
   { path: 'cm-performance', element: <CmPerformancePage /> },
   { path: 'cm-performance/:reportId', element: <CmPerfReportPage /> },
   { path: 'adapt-actions', element: <AdaptActionsPage /> },
+  { path: 'transfer-ownership', element: <TransferOwnershipPage /> },
   { path: 'reference', element: <ReferencePage /> },
 ];

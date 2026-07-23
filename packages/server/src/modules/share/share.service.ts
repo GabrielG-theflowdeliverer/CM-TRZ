@@ -1,7 +1,10 @@
-import { newToken, type Db } from '../../infra/db.js';
+import { isoInDays, newToken, nowIso, type Db } from '../../infra/db.js';
 import { notFound } from '../../infra/http.js';
 import * as repo from './share.repo.js';
 import * as dashboard from '../dashboard/dashboard.service.js';
+
+/** How long a view-only share link stays valid after it is enabled or rotated. */
+export const SHARE_LINK_TTL_DAYS = 90;
 
 export interface ShareState {
   /** The active share token, or null when sharing is off. */
@@ -16,12 +19,12 @@ export function getShareState(db: Db, projectId: string): ShareState {
 /** Turn sharing on — or rotate the token, which revokes every old link. */
 export function enableShare(db: Db, projectId: string): ShareState {
   const token = newToken();
-  if (!repo.setShareToken(db, projectId, token)) notFound('Project');
+  if (!repo.setShareToken(db, projectId, token, isoInDays(SHARE_LINK_TTL_DAYS))) notFound('Project');
   return { token };
 }
 
 export function disableShare(db: Db, projectId: string): void {
-  if (!repo.setShareToken(db, projectId, null)) notFound('Project');
+  if (!repo.setShareToken(db, projectId, null, null)) notFound('Project');
 }
 
 /**
@@ -30,6 +33,6 @@ export function disableShare(db: Db, projectId: string): void {
  * token 404s without revealing whether the project exists.
  */
 export function getSharedDashboard(db: Db, token: string): dashboard.ProjectDashboardPayload {
-  const projectId = repo.getProjectIdByShareToken(db, token) ?? notFound('Shared view');
+  const projectId = repo.getProjectIdByShareToken(db, token, nowIso()) ?? notFound('Shared view');
   return dashboard.getProjectDashboard(db, projectId);
 }

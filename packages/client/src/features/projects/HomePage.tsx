@@ -6,6 +6,7 @@ import { api } from '../../lib/api';
 import type { DashboardDto, Project } from '../../lib/types';
 import { BandChip, RiskBadge } from '../../ui/scores';
 import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
+import { SignOutButton } from '../auth/SignOutButton';
 
 const STATUS_FILTERS = ['Active', 'All', ...PROJECT_STATUSES.filter((s) => s !== 'Active')] as const;
 
@@ -71,9 +72,12 @@ export function HomePage() {
             Prosci methodology workspace — projects, assessments, ADKAR blueprints and CM plans.
           </p>
         </div>
-        <Link to="/dashboard" className="cmt-btn">
-          Portfolio Dashboard
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/dashboard" className="cmt-btn">
+            Portfolio Dashboard
+          </Link>
+          <SignOutButton />
+        </div>
       </header>
 
       <div className="cmt-card mb-6">

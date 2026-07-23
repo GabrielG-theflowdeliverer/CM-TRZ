@@ -1,0 +1,44 @@
+# Fly.io deployment for the Change Management Tool.
+#
+# Single-tenant by design: one always-on machine with a persistent volume for the
+# SQLite database. Do NOT scale past one machine — the volume attaches to a single
+# VM and SQLite has one writer. Secrets are set out-of-band, never here:
+#   fly secrets set CMT_SESSION_SECRET=... CMT_EDITOR_PASSWORD_HASH=...
+# (generate the hash with:  npm run hash-password -w @cmt/server -- '<password>')
+
+# App slug must be globally unique + DNS-safe. If `fly launch` says it's taken,
+# change just this line (e.g. "cm-trz").
+app = "change-management-tool"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  CMT_PORT = "8080"
+  CMT_DB_FILE = "/data/proxima.db"
+  CMT_BACKUP_DIR = "/data/backups"
+
+# Persistent storage for the SQLite file + startup backups. 1 GB is ample.
+[mounts]
+  source = "cmt_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # One machine, always on — the database lives on its volume.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/api/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

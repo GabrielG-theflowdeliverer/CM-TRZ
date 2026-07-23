@@ -5,8 +5,15 @@ import {
   type SurveyCampaignSummary,
   type SurveyRecipient,
 } from '@cmt/domain';
-import { newId, newToken, nowIso, type Db } from '../../infra/db.js';
+import { isoInDays, newId, newToken, nowIso, type Db } from '../../infra/db.js';
 import { HttpError, notFound } from '../../infra/http.js';
+
+/**
+ * How long a survey campaign's recipient links stay valid after it opens.
+ * Short by design: a survey is sent a few days before the facilitation session,
+ * collected, then closed — it isn't a standing link.
+ */
+export const SURVEY_LINK_TTL_DAYS = 5;
 import * as repo from './surveys.repo.js';
 import * as assessmentsRepo from '../assessments/assessments.repo.js';
 import { getRoleRow } from '../roles/roles.repo.js';
@@ -19,6 +26,7 @@ function toRecipient(row: repo.RecipientRow): SurveyRecipient {
     roleName: row.role_name,
     token: row.token,
     submittedAt: row.submitted_at,
+    expiresAt: row.expires_at,
   };
 }
 
@@ -55,6 +63,7 @@ export function createCampaign(
 
   const id = newId();
   const createdAt = nowIso();
+  const expiresAt = isoInDays(SURVEY_LINK_TTL_DAYS);
   db.transaction(() => {
     repo.insertCampaign(db, { id, projectId, assessmentId: input.assessmentId, createdAt });
     for (const role of roles) {
@@ -64,6 +73,7 @@ export function createCampaign(
         roleId: role.id,
         personName: role.personName,
         token: newToken(),
+        expiresAt,
       });
     }
   })();
@@ -94,8 +104,28 @@ export interface SurveyView {
   responses: Record<string, number | null>;
 }
 
-export function getSurveyByToken(db: Db, token: string): SurveyView {
+/**
+ * Re-issue a single recipient's link — a fresh token and a fresh expiry —
+ * leaving every other recipient untouched. For when one link lapses or is lost;
+ * beats rotating the whole campaign (which would invalidate everyone's links).
+ */
+export function regenerateRecipient(db: Db, recipientId: string): SurveyRecipient {
+  const existing = repo.getRecipientRow(db, recipientId) ?? notFound('Recipient');
+  repo.regenerateRecipientToken(db, existing.id, newToken(), isoInDays(SURVEY_LINK_TTL_DAYS));
+  return toRecipient(repo.getRecipientRow(db, recipientId)!);
+}
+
+/** Resolve a recipient token to its row, 404ing unknown tokens and 410ing expired ones. */
+function resolveRecipient(db: Db, token: string): repo.RecipientByTokenRow {
   const row = repo.getRecipientByToken(db, token) ?? notFound('Survey');
+  if (row.expires_at !== null && row.expires_at <= nowIso()) {
+    throw new HttpError(410, 'This survey link has expired');
+  }
+  return row;
+}
+
+export function getSurveyByToken(db: Db, token: string): SurveyView {
+  const row = resolveRecipient(db, token);
   return {
     personName: row.person_name,
     assessmentType: row.assessment_type as AssessmentType,
@@ -107,7 +137,7 @@ export function getSurveyByToken(db: Db, token: string): SurveyView {
 
 /** Final, one-time submission. Rejects a second submit (submit-once). */
 export function submitSurvey(db: Db, token: string, responses: Record<string, number | null>): SurveyView {
-  const row = repo.getRecipientByToken(db, token) ?? notFound('Survey');
+  const row = resolveRecipient(db, token);
   if (row.submitted_at !== null) throw new HttpError(409, 'This survey has already been submitted');
   db.transaction(() => {
     repo.upsertResponses(db, row.id, responses);
