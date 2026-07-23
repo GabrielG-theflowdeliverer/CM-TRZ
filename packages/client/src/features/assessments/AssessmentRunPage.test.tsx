@@ -70,4 +70,29 @@ describe('AssessmentRunPage', () => {
     await userEvent.click(screen.getAllByRole('radio', { name: '3' })[0]!);
     await waitFor(() => expect(put).toHaveBeenCalledWith('/api/assessments/a1/responses', { [pctItemKey('success', 0)]: 3 }));
   });
+
+  it('has a single notes editor that autosaves (no duplicate bound to run.notes)', async () => {
+    mockGet();
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue({ ...pctRun, notes: 'Follow up next quarter' });
+
+    renderWithClient(
+      <MemoryRouter initialEntries={['/projects/p1/assessments/a1']}>
+        <Routes>
+          <Route path="/projects/:projectId/assessments/:assessmentId" element={<AssessmentRunPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // Exactly one notes editor: the old duplicate top-grid "Notes" field is gone.
+    expect(await screen.findByText('Assessment notes')).toBeInTheDocument();
+    expect(screen.queryByText('Notes', { exact: true })).toBeNull();
+
+    // Editing it autosaves via PATCH on blur.
+    const notes = screen.getByPlaceholderText('Notes on this assessment…');
+    await userEvent.type(notes, 'Follow up next quarter');
+    await userEvent.tab();
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith('/api/assessments/a1', { notes: 'Follow up next quarter' }),
+    );
+  });
 });
