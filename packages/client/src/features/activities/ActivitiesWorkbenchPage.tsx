@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
   ACTIVITY_GROUP_BY,
   ACTIVITY_GROUP_BY_LABELS,
@@ -8,12 +7,12 @@ import {
   ADKAR_LABELS,
   type ActivityGroupBy,
 } from '@cmt/domain';
-import { api } from '../../lib/api';
 import type { Activity, BlueprintDto, PlanDto, RoleDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroups } from '../impact/useGroups';
 import { usePlans } from '../plans/usePlans';
 import { useBlueprints } from '../blueprints/useBlueprints';
+import { useRoles } from '../roles/useRoles';
 import { ActivityTable, roleLabel, type ActivityTableContext } from './ActivityTable';
 import { useActivities, useActivityMutations } from './useActivities';
 
@@ -98,11 +97,7 @@ export function ActivitiesWorkbenchPage() {
   const { data: groups } = useGroups(projectId);
   const { data: plans } = usePlans(projectId);
   const { data: blueprints } = useBlueprints(projectId);
-  const { data: roles } = useQuery({
-    queryKey: ['roles', projectId],
-    queryFn: () => api.get<RoleDto[]>(`/api/projects/${projectId}/roles`),
-    enabled: projectId !== '',
-  });
+  const { data: roles } = useRoles(projectId);
   const mutations = useActivityMutations(projectId);
 
   const sections = useMemo(

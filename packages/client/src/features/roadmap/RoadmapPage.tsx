@@ -1,21 +1,18 @@
 import { Link } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ADKAR_ELEMENTS, ADKAR_LABELS, MAX_RELEASES } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { Roadmap } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroups } from '../impact/useGroups';
+import { useRoadmap } from './useRoadmap';
 import { DateInput, TextField } from '../../ui/controls';
 import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
 
 export function RoadmapPage() {
   const { projectId, project } = useProject();
   const queryClient = useQueryClient();
-  const { data: roadmap } = useQuery({
-    queryKey: ['roadmap', projectId],
-    queryFn: () => api.get<Roadmap>(`/api/projects/${projectId}/roadmap`),
-    enabled: projectId !== '',
-  });
+  const { data: roadmap } = useRoadmap(projectId);
   const { data: groups } = useGroups(projectId);
   const invalidateCaches = useInvalidateProjectCaches();
   const update = useMutation({

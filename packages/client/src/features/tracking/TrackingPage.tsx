@@ -9,13 +9,14 @@ import {
   type TrackingSchedule,
 } from '@cmt/domain';
 import { api } from '../../lib/api';
-import type { Roadmap, TrackingEntry } from '../../lib/types';
+import type { TrackingEntry } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { DateInput, Select, TextArea } from '../../ui/controls';
 import { useActivities } from '../activities/useActivities';
 import { useAssessments } from '../assessments/useAssessments';
 import { useGroups } from '../impact/useGroups';
 import { useCmPerfReports } from './useCmPerfReports';
+import { useRoadmap } from '../roadmap/useRoadmap';
 import { TimelineView } from './TimelineView';
 import { useInvalidateProjectCaches } from '../../lib/queryInvalidation';
 
@@ -32,11 +33,7 @@ export function TrackingPage() {
     queryFn: () => api.get<TrackingEntry[]>(`/api/projects/${projectId}/tracking`),
     enabled: projectId !== '',
   });
-  const { data: roadmap } = useQuery({
-    queryKey: ['roadmap', projectId],
-    queryFn: () => api.get<Roadmap>(`/api/projects/${projectId}/roadmap`),
-    enabled: projectId !== '',
-  });
+  const { data: roadmap } = useRoadmap(projectId);
 
   const invalidate = () => invalidateCaches(['tracking', projectId]);
   const create = useMutation({

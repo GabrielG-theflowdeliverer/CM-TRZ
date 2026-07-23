@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ADKAR_ELEMENTS,
   ADKAR_SHORT,
@@ -16,6 +16,7 @@ import { api } from '../../lib/api';
 import type { RoleDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroups } from '../impact/useGroups';
+import { useRoles } from './useRoles';
 import { BarrierBadge, ScorePicker, adkarCellColor } from '../../ui/scores';
 import { ComboField, Select, TextArea, TextField } from '../../ui/controls';
 import { MultiSelect } from '../../ui/MultiSelect';
@@ -23,11 +24,7 @@ import { MultiSelect } from '../../ui/MultiSelect';
 export function RolesPage() {
   const { projectId } = useProject();
   const queryClient = useQueryClient();
-  const { data: roles } = useQuery({
-    queryKey: ['roles', projectId],
-    queryFn: () => api.get<RoleDto[]>(`/api/projects/${projectId}/roles`),
-    enabled: projectId !== '',
-  });
+  const { data: roles } = useRoles(projectId);
   const { data: groups } = useGroups(projectId);
 
   const invalidate = () => {
