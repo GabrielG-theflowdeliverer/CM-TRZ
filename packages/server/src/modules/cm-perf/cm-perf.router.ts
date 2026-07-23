@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { cmPerfItemUpdateSchema, cmPerfReportCreateSchema, cmPerfReportUpdateSchema } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
-import { parseBody } from '../../infra/http.js';
+import { parseBody, projectIdParam } from '../../infra/http.js';
 import * as service from './cm-perf.service.js';
 
 /** Nested under /api/projects/:projectId/cm-perf-reports */
@@ -9,7 +9,8 @@ export function createProjectCmPerfRouter(db: Db): Router {
   const router = Router({ mergeParams: true });
 
   router.get('/', (req, res) => {
-    res.json(service.listReports(db, (req.params as Record<string, string>).projectId!));
+    // A read-only request (e.g. the share surface) must not reconcile: that writes.
+    res.json(service.listReports(db, projectIdParam(req), { reconcile: res.locals.readOnly !== true }));
   });
 
   router.post('/', (req, res) => {

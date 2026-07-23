@@ -103,6 +103,60 @@ describe('view-only project share', () => {
     await request(ctx.app).get(`/api/share/${t}/groups/${foreignGroup.id}`).expect(404);
   });
 
+  it('never writes on read: view-only cm-perf reads do not reconcile items', async () => {
+    const { body: on } = await request(ctx.app).post(`/api/projects/${projectId}/share`).expect(201);
+    const t = on.token;
+
+    // A fresh project seeds 4 core plans + 1 blueprint, so a new report enumerates 5 items.
+    const { body: report } = await request(ctx.app)
+      .post(`/api/projects/${projectId}/cm-perf-reports`)
+      .send({ name: 'Q1' })
+      .expect(201);
+    expect(report.items).toHaveLength(5);
+
+    // Add a blueprint after the report exists: the report is now stale by one item.
+    // A practitioner read would reconcile (write) that item back in; a view-only read must not.
+    await request(ctx.app)
+      .post(`/api/projects/${projectId}/blueprints`)
+      .send({ scopeKind: 'custom', name: 'Extra' })
+      .expect(201);
+
+    // Both view-only surfaces (item route + project-mirror list) see the un-reconciled 5.
+    const { body: sharedItem } = await request(ctx.app).get(`/api/share/${t}/cm-perf-reports/${report.id}`).expect(200);
+    expect(sharedItem.items).toHaveLength(5);
+    const { body: sharedList } = await request(ctx.app)
+      .get(`/api/share/${t}/projects/${projectId}/cm-perf-reports`)
+      .expect(200);
+    expect(sharedList[0].items).toHaveLength(5);
+
+    // The practitioner read still reconciles — proof the view-only path, not the feature, was neutered.
+    const { body: ownerView } = await request(ctx.app).get(`/api/cm-perf-reports/${report.id}`).expect(200);
+    expect(ownerView.items).toHaveLength(6);
+  });
+
+  it('a view-only token cannot trigger a write against another project (reconcile stays off)', async () => {
+    const { body: on } = await request(ctx.app).post(`/api/projects/${projectId}/share`).expect(201);
+    const t = on.token;
+
+    // A second project with its own stale report (blueprint added after creation).
+    const { body: other } = await request(ctx.app).post('/api/projects').send({ name: 'Other' }).expect(201);
+    const { body: foreignReport } = await request(ctx.app)
+      .post(`/api/projects/${other.id}/cm-perf-reports`)
+      .send({ name: 'Secret' })
+      .expect(201);
+    await request(ctx.app).post(`/api/projects/${other.id}/blueprints`).send({ scopeKind: 'custom', name: 'X' }).expect(201);
+
+    // Project A's token hitting project B's report 404s — and must not have reconciled it on the way.
+    await request(ctx.app).get(`/api/share/${t}/cm-perf-reports/${foreignReport.id}`).expect(404);
+
+    // Enabling sharing on Other and viewing read-only still shows the un-reconciled 5: no cross-project write happened.
+    const { body: otherOn } = await request(ctx.app).post(`/api/projects/${other.id}/share`).expect(201);
+    const { body: stillStale } = await request(ctx.app)
+      .get(`/api/share/${otherOn.token}/cm-perf-reports/${foreignReport.id}`)
+      .expect(200);
+    expect(stillStale.items).toHaveLength(5);
+  });
+
   it('excludes surveys and exports from the browse surface', async () => {
     const { body: on } = await request(ctx.app).post(`/api/projects/${projectId}/share`).expect(201);
     const t = on.token;

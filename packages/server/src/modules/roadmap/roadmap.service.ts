@@ -14,11 +14,16 @@ interface RoadmapRow {
 
 export function getRoadmap(db: Db, projectId: string): Roadmap {
   getProject(db, projectId);
-  let row = db.prepare('SELECT * FROM roadmaps WHERE project_id = ?').get(projectId) as RoadmapRow | undefined;
-  if (!row) {
-    db.prepare(`INSERT INTO roadmaps (project_id, mode) VALUES (?, 'sequential')`).run(projectId);
-    row = db.prepare('SELECT * FROM roadmaps WHERE project_id = ?').get(projectId) as RoadmapRow;
-  }
+  // A read must never write: synthesize the default roadmap in memory when no
+  // row exists yet (the row is materialised on first edit, see ensureRoadmapRow).
+  // This keeps GET side-effect-free, which the read-only share surface relies on.
+  const row = (db.prepare('SELECT * FROM roadmaps WHERE project_id = ?').get(projectId) as RoadmapRow | undefined) ?? {
+    project_id: projectId,
+    mode: 'sequential',
+    kickoff_date: null,
+    golive_date: null,
+    outcomes_date: null,
+  };
   const releases = db
     .prepare('SELECT release_no, date, name FROM roadmap_releases WHERE project_id = ? ORDER BY release_no')
     .all(projectId) as Array<{ release_no: number; date: string | null; name: string | null }>;
@@ -67,6 +72,11 @@ export function updateRoadmap(
     }
   }
   db.transaction(() => {
+    // Materialise the row on first edit so the UPDATE below has something to hit
+    // (getRoadmap no longer creates it on read).
+    db.prepare(`INSERT INTO roadmaps (project_id, mode) VALUES (?, 'sequential') ON CONFLICT(project_id) DO NOTHING`).run(
+      projectId,
+    );
     db.prepare(
       `UPDATE roadmaps SET mode = ?, kickoff_date = ?, golive_date = ?, outcomes_date = ? WHERE project_id = ?`,
     ).run(
