@@ -264,6 +264,37 @@ describe('assessment survey roll-up', () => {
     await request(ctx.app).delete(`/api/surveys/${campaign.id}`).expect(404);
   });
 
+  it('erasing one recipient removes only their name/responses and recomputes the roll-up', async () => {
+    const roleA = await addRole(projectId, 'J. Smith');
+    const roleB = await addRole(projectId, 'A. Lee');
+    const { body: campaign } = await request(ctx.app)
+      .post(`/api/projects/${projectId}/surveys`)
+      .send({ assessmentId, roleIds: [roleA, roleB] })
+      .expect(201);
+    const smith = campaign.recipients.find((r: { personName: string }) => r.personName === 'J. Smith');
+    const lee = campaign.recipients.find((r: { personName: string }) => r.personName === 'A. Lee');
+    await request(ctx.app).put(`/api/survey/${smith.token}`).send(answers(2)).expect(200);
+    await request(ctx.app).put(`/api/survey/${lee.token}`).send(answers(4)).expect(200);
+
+    // Both submissions are in the roll-up.
+    const { body: before } = await request(ctx.app).get(`/api/assessments/${assessmentId}`).expect(200);
+    expect(before.survey.respondentCount).toBe(2);
+
+    // Erase Smith — targeted data-subject erasure.
+    await request(ctx.app).delete(`/api/survey-recipients/${smith.id}`).expect(204);
+
+    // Smith's name and answers are gone; Lee's remain and the roll-up recomputes.
+    const { body: campaignAfter } = await request(ctx.app).get(`/api/surveys/${campaign.id}`).expect(200);
+    const names = campaignAfter.recipients.map((r: { personName: string }) => r.personName);
+    expect(names).toEqual(['A. Lee']);
+    const { body: after } = await request(ctx.app).get(`/api/assessments/${assessmentId}`).expect(200);
+    expect(after.survey.respondentCount).toBe(1);
+    expect(after.survey.individuals.map((i: { personName: string }) => i.personName)).toEqual(['A. Lee']);
+
+    // Erasing an unknown recipient 404s.
+    await request(ctx.app).delete(`/api/survey-recipients/${smith.id}`).expect(404);
+  });
+
   it('falls back to hand-entered responses when nobody has submitted yet', async () => {
     await request(ctx.app).put(`/api/assessments/${assessmentId}/responses`).send(answers(5)).expect(200);
     const { body: a } = await request(ctx.app).get(`/api/assessments/${assessmentId}`).expect(200);

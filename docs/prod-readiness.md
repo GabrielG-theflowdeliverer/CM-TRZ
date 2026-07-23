@@ -61,14 +61,22 @@ holder's Fly account. Parked here until you host.
 *Acceptance:* a documented successful deploy; health endpoint green in prod;
 login works; a survey token round-trips (checklist at the end of the runbook).
 
-## 3. PII / data-handling posture — **high** · ⬜
+## 3. PII / data-handling posture — **high** · ✅
 
 **Why.** The app now stores **named** self-assessments (person name snapshotted
 on survey recipients + responses). That is personal data. Decide and document:
 retention window, deletion path (data-subject erasure), and what leaves the box
-(exports carry names). This is a decision + light implementation, not a big build.
-*Acceptance:* a short data-handling note in the repo; a way to purge a named
-respondent's data; export behaviour re: names is deliberate and documented.
+(exports carry names).
+
+**Done:** `docs/data-handling.md` documents the PII inventory, storage (SQLite +
+backups), retention, all erasure paths, and export behaviour (roster names
+travel in JSON/CSV export by design; survey PII never does). Added a **targeted
+single-respondent erasure** path — `DELETE /api/survey-recipients/:id` (router →
+service → repo, responses cascade) — so a data-subject can be removed without
+nuking the whole campaign; the assessment roll-up recomputes over the remaining
+respondents. Test-covered in `surveys.test.ts`.
+*Note:* backups retain PII until they rotate out — a hard erasure also clears
+`/data/backups` (documented).
 
 ## 4. Encryption at rest — **medium** · ⬜
 

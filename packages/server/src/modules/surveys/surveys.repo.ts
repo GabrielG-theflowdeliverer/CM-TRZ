@@ -78,6 +78,11 @@ export function deleteCampaign(db: Db, id: string): boolean {
   return db.prepare('DELETE FROM survey_campaigns WHERE id = ?').run(id).changes > 0;
 }
 
+/** Erase one recipient — their snapshotted name and responses (ON DELETE CASCADE). */
+export function deleteRecipient(db: Db, id: string): boolean {
+  return db.prepare('DELETE FROM survey_recipients WHERE id = ?').run(id).changes > 0;
+}
+
 export function hasCampaignForAssessment(db: Db, assessmentId: string): boolean {
   return (
     db.prepare('SELECT 1 FROM survey_campaigns WHERE assessment_id = ? LIMIT 1').get(assessmentId) !== undefined
