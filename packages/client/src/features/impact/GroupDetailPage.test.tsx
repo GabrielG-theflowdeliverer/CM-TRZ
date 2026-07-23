@@ -82,6 +82,12 @@ function renderPage() {
 }
 
 describe('GroupDetailPage', () => {
+  it('shows a loading panel until the group resolves (no blank screen)', () => {
+    vi.spyOn(api, 'get').mockReturnValue(new Promise(() => {}));
+    renderPage();
+    expect(screen.getByText(/Loading group/)).toBeInTheDocument();
+  });
+
   it('shows the group and its Overview, with the ADKAR tab reflecting run count', async () => {
     mockGet();
     renderPage();

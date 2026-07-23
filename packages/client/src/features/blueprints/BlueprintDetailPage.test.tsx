@@ -62,6 +62,12 @@ function renderPage() {
 afterEach(() => vi.restoreAllMocks());
 
 describe('BlueprintDetailPage', () => {
+  it('shows a loading panel until the blueprint resolves (no blank screen)', () => {
+    vi.spyOn(api, 'get').mockReturnValue(new Promise(() => {}));
+    renderPage();
+    expect(screen.getByText(/Loading blueprint/)).toBeInTheDocument();
+  });
+
   it('renders the blueprint header and one section per ADKAR element', async () => {
     mockGet();
     renderPage();

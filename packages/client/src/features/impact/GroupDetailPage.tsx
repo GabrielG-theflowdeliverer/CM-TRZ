@@ -14,6 +14,7 @@ import { useProject } from '../../app/ProjectLayout';
 import { useGroupMutations } from './useGroups';
 import { useRoles } from '../roles/useRoles';
 import { useRoadmap } from '../roadmap/useRoadmap';
+import { queryGate } from '../../ui/QueryGate';
 import { OrgGroupLinker } from './OrgGroupLinker';
 import { useAssessments, useInvalidateAssessments } from '../assessments/useAssessments';
 import { BarrierBadge, HeatCell, RiskBadge, ScorePicker, adkarCellColor, impactCellColor } from '../../ui/scores';
@@ -244,17 +245,20 @@ function GroupRunsTab(props: {
 export function GroupDetailPage() {
   const { projectId } = useProject();
   const { groupId = '' } = useParams();
-  const { data: group } = useQuery({
+  const groupQuery = useQuery({
     queryKey: ['groups', projectId, groupId],
     queryFn: () => api.get<GroupDto>(`/api/groups/${groupId}`),
     enabled: groupId !== '',
   });
+  const group = groupQuery.data;
   const { update, saveAspects, saveAdkar } = useGroupMutations(projectId);
   const { data: allAdkar } = useAssessments(projectId, 'adkar');
   const { data: allRisk } = useAssessments(projectId, 'risk');
   const [showGuide, setShowGuide] = useState(false);
   const [tab, setTab] = useState<GroupTab>('Overview');
 
+  const gate = queryGate(groupQuery, 'group');
+  if (gate) return gate;
   if (!group) return null;
   const aspectByKey = new Map(group.aspects.map((a) => [a.aspectKey, a]));
   const groupAdkarRuns = (allAdkar ?? []).filter((r) => r.subjectKind === 'group' && r.subjectId === group.id);
