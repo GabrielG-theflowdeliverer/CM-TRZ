@@ -19,6 +19,17 @@ export async function backupDb(db: Db, dir: string, keep = DEFAULT_KEEP): Promis
   // ISO stamp made filename-safe; lexicographic order == chronological order.
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const dest = path.join(dir, `${BACKUP_PREFIX}${stamp}${BACKUP_SUFFIX}`);
+  await snapshotTo(db, dest);
+  prune(dir, keep);
+  return dest;
+}
+
+/**
+ * Online, WAL-safe snapshot to an exact path: one self-contained, verified file.
+ * The offsite-backup CLI uses this to write a fixed filename it can then pull
+ * off the host; `backupDb` uses it for timestamped, pruned local snapshots.
+ */
+export async function snapshotTo(db: Db, dest: string): Promise<void> {
   await db.backup(dest);
   // The live db is WAL-mode and the backup inherits it, leaving -wal/-shm
   // sidecars. A backup must be ONE self-contained file (restore = copy it
@@ -30,8 +41,6 @@ export async function backupDb(db: Db, dir: string, keep = DEFAULT_KEEP): Promis
     flatten.close();
   }
   verifyBackup(dest);
-  prune(dir, keep);
-  return dest;
 }
 
 /** Open a backup read-only and prove it's a healthy, migrated database. */
