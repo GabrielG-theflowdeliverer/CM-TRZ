@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { Project } from '@cmt/domain';
 import { newId, nowIso, type Db } from '../../infra/db.js';
 import { HttpError, notFound } from '../../infra/http.js';
@@ -162,6 +163,9 @@ function rows(db: Db, sql: string, projectId: string): Record<string, unknown>[]
 export function exportProject(db: Db, projectId: string): ProjectExport {
   getProject(db, projectId);
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as Record<string, unknown>;
+  // Never carry the live share token in an export file — it's an access
+  // credential, and its UNIQUE index would collide on import/duplicate.
+  delete project.share_token;
   return {
     format: 'change-management-tool/project',
     version: 2,
@@ -239,21 +243,74 @@ export function exportProject(db: Db, projectId: string): ProjectExport {
   };
 }
 
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 function insertRow(db: Db, table: string, row: Record<string, unknown>): void {
   const keys = Object.keys(row);
-  const sql = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`;
+  // Column names come from the (untrusted) import payload and are interpolated
+  // into SQL, so every one must be a plain identifier — reject anything else as
+  // a bad payload (400) rather than letting it reach the query builder. Values
+  // stay parameterized; identifiers are also quoted defensively.
+  for (const k of keys) {
+    if (!IDENTIFIER.test(k)) throw new HttpError(400, `Invalid column name in import payload: ${k}`);
+  }
+  const cols = keys.map((k) => `"${k}"`).join(', ');
+  const sql = `INSERT INTO ${table} (${cols}) VALUES (${keys.map(() => '?').join(', ')})`;
   db.prepare(sql).run(...keys.map((k) => row[k]));
 }
 
-export function importProject(
-  db: Db,
-  rawPayload: ProjectExport | ProjectExportV1,
-  options?: { name?: string },
-): Project {
-  if (rawPayload?.format !== 'change-management-tool/project' || ![1, 2].includes(rawPayload.version)) {
-    throw new HttpError(400, 'Unrecognized project export format');
-  }
-  const payload: ProjectExport = rawPayload.version === 1 ? upgradeV1(rawPayload) : rawPayload;
+const importRow = z.record(z.string(), z.unknown());
+const importRows = z.array(importRow).default([]);
+
+/**
+ * Envelope validation for POST /api/import. Guarantees the format/version and
+ * that every collection the importer iterates is actually an array (so a
+ * malformed file yields a 400, not a mid-transaction 500). Per-row column keys
+ * are validated separately in insertRow. Unknown top-level keys are dropped.
+ */
+export const projectExportSchema = z.object({
+  format: z.literal('change-management-tool/project'),
+  version: z.union([z.literal(1), z.literal(2)]),
+  project: importRow,
+  roadmap: importRow.nullable().default(null),
+  assessments: importRows,
+  assessmentResponses: importRows,
+  groups: importRows,
+  groupAspects: importRows,
+  roles: importRows,
+  roleGroups: importRows,
+  blueprints: importRows,
+  blueprintElements: importRows,
+  blueprintSnapshots: importRows,
+  plans: importRows,
+  activities: importRows,
+  activityAdkar: importRows,
+  activityGroups: importRows,
+  activityPlans: importRows,
+  activityBlueprints: importRows,
+  activityRoles: importRows,
+  roadmapReleases: importRows,
+  roadmapAdkarMilestones: importRows,
+  trackingEntries: importRows,
+  cmPerfReports: importRows,
+  cmPerfItems: importRows,
+  adaptActions: importRows,
+  projectDocs: importRows,
+  resistanceItems: importRows,
+  // v1-only collections (upgraded to the v2 shape by upgradeV1); optional so a
+  // v2 payload validates without them.
+  blueprintActivities: importRows.optional(),
+  planActivities: importRows.optional(),
+  cmPerfEntries: importRows.optional(),
+});
+
+export type ProjectImportPayload = z.infer<typeof projectExportSchema>;
+
+export function importProject(db: Db, rawPayload: ProjectImportPayload, options?: { name?: string }): Project {
+  const payload: ProjectExport =
+    rawPayload.version === 1
+      ? upgradeV1(rawPayload as unknown as ProjectExportV1)
+      : (rawPayload as unknown as ProjectExport);
   const newProjectId = newId();
   const now = nowIso();
 
@@ -270,11 +327,13 @@ export function importProject(
 
   db.transaction(() => {
     // watch_group_ids reference old group ids; blank now, remap after groups exist.
+    // share_token is a per-project credential with a UNIQUE index — never copy it.
     insertRow(db, 'projects', {
       ...payload.project,
       id: newProjectId,
       name: options?.name ?? payload.project.name,
       watch_group_ids: null,
+      share_token: null,
       created_at: now,
       updated_at: now,
     });
