@@ -115,6 +115,17 @@ export function regenerateRecipient(db: Db, recipientId: string): SurveyRecipien
   return toRecipient(repo.getRecipientRow(db, recipientId)!);
 }
 
+/**
+ * Erase a single recipient — their snapshotted name and any submitted responses
+ * — without touching the rest of the campaign. This is the targeted
+ * data-subject erasure path (e.g. a respondent asks to be removed); deleting the
+ * whole campaign would take everyone else's data with it. If they had submitted,
+ * the assessment roll-up simply recomputes over the remaining respondents.
+ */
+export function deleteRecipient(db: Db, recipientId: string): void {
+  if (!repo.deleteRecipient(db, recipientId)) notFound('Recipient');
+}
+
 /** Resolve a recipient token to its row, 404ing unknown tokens and 410ing expired ones. */
 function resolveRecipient(db: Db, token: string): repo.RecipientByTokenRow {
   const row = repo.getRecipientByToken(db, token) ?? notFound('Survey');

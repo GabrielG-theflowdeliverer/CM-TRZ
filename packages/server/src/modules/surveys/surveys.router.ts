@@ -45,6 +45,12 @@ export function createSurveyRecipientsRouter(db: Db): Router {
     res.json(service.regenerateRecipient(db, req.params.id));
   });
 
+  // Erase one recipient (snapshotted name + responses) — targeted data-subject erasure.
+  router.delete('/:id', (req, res) => {
+    service.deleteRecipient(db, req.params.id);
+    res.status(204).end();
+  });
+
   return router;
 }
 
