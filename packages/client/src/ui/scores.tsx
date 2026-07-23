@@ -17,7 +17,7 @@ export function BandChip(props: { label: string; score: number | null | undefine
   const score = props.score;
   if (score == null) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
         {props.label} <span className="font-bold">—</span>
       </span>
     );
@@ -116,7 +116,7 @@ export function BarrierBadge(props: { barrier: string | null | undefined }) {
 }
 
 export function RiskBadge(props: { quadrant: string | null | undefined }) {
-  if (!props.quadrant) return <span className="text-xs text-slate-400">Not assessed</span>;
+  if (!props.quadrant) return <span className="text-xs text-slate-600">Not assessed</span>;
   const colors: Record<string, string> = {
     Low: 'bg-green-100 text-green-800',
     Medium: 'bg-amber-100 text-amber-800',

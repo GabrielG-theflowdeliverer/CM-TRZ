@@ -57,7 +57,7 @@ function SurveyForm({ token, survey }: { token: string; survey: SurveyView }) {
     >
       <header>
         <h1 className="text-xl font-bold">{survey.assessmentLabel ?? ASSESSMENT_TYPE_LABELS[survey.assessmentType]}</h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-600">
           Hi {survey.personName} — please rate each item from {structure.min} to {structure.max}.
         </p>
       </header>

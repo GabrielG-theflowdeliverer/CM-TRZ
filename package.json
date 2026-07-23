@@ -19,6 +19,7 @@
     "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.61.1",
     "@vitest/coverage-v8": "^3.2.7",
