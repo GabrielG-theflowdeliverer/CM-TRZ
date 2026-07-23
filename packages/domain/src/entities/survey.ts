@@ -24,6 +24,8 @@ export interface SurveyRecipient {
   /** Opaque link token. */
   token: string;
   submittedAt: string | null;
+  /** When this recipient's link stops working; null = never expires. */
+  expiresAt: string | null;
 }
 
 export interface SurveyCampaign {

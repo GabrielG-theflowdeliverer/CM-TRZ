@@ -33,6 +33,7 @@ describe('polling predicates', () => {
       roleName: null,
       token: 't',
       submittedAt,
+      expiresAt: null,
     });
     expect(hasPendingRecipient({ ...base, recipients: [rec('y'), rec(null)] })).toBe(true);
     expect(hasPendingRecipient({ ...base, recipients: [rec('y')] })).toBe(false);

@@ -1,0 +1,15 @@
+# Never copy host node_modules — the image installs its own (and the host's
+# better-sqlite3 binary is built for macOS, not the Linux image).
+node_modules
+**/node_modules
+
+# Built artifacts are (re)built inside the image.
+dist
+**/dist
+
+# Local database, backups and noise.
+packages/server/data
+.git
+*.log
+coverage
+.DS_Store

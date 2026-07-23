@@ -28,6 +28,17 @@ export function isShareView(): boolean {
   return shareViewToken !== null;
 }
 
+/**
+ * Called when a request comes back 401 (session missing/expired) outside share
+ * mode, so the app can bounce to the login screen. Registered once at boot
+ * (main.tsx); defaults to a no-op so tests and share mode are unaffected.
+ */
+let onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(fn: (() => void) | null): void {
+  onUnauthorized = fn;
+}
+
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   if (shareViewToken !== null) {
     if (method !== 'GET') throw new ApiError(403, 'This link is view-only');
@@ -59,6 +70,7 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
     } catch {
       // keep statusText
     }
+    if (res.status === 401 && shareViewToken === null) onUnauthorized?.();
     throw new ApiError(res.status, message);
   }
   if (res.status === 204) return undefined as T;

@@ -6,7 +6,13 @@ import type { AssessmentDto, AssessmentSurveyView } from '../../lib/types';
 import { isShareView } from '../../lib/api';
 import { MultiSelect } from '../../ui/MultiSelect';
 import { useRoles } from '../roles/useRoles';
-import { useCampaign, useCampaigns, useCreateCampaign, useDeleteCampaign } from './useCampaigns';
+import {
+  useCampaign,
+  useCampaigns,
+  useCreateCampaign,
+  useDeleteCampaign,
+  useRegenerateRecipientLink,
+} from './useCampaigns';
 
 /**
  * Practitioner-side survey facilitation for one assessment run: launch a
@@ -105,6 +111,7 @@ function RecipientList({
   assessmentId: string;
 }) {
   const remove = useDeleteCampaign(projectId, assessmentId);
+  const regenerate = useRegenerateRecipientLink(campaign.id);
   const onRemove = () => {
     // Destructive: submitted responses go with the campaign; scoring reverts
     // to the hand-entered values. Make the practitioner say so explicitly.
@@ -139,24 +146,40 @@ function RecipientList({
       </div>
       <table className="w-full">
         <tbody>
-          {campaign.recipients.map((r) => (
-            <tr key={r.id}>
-              <td className="cmt-td">
-                {r.personName}
-                {r.roleName && <span className="text-slate-400"> — {r.roleName}</span>}
-              </td>
-              <td className="cmt-td w-28">
-                {r.submittedAt ? (
-                  <span className="text-xs font-medium text-green-700">Submitted</span>
-                ) : (
-                  <span className="text-xs text-slate-400">Pending</span>
-                )}
-              </td>
-              <td className="cmt-td w-28 text-right">
-                <CopyLinkButton token={r.token} />
-              </td>
-            </tr>
-          ))}
+          {campaign.recipients.map((r) => {
+            const expired = !r.submittedAt && r.expiresAt !== null && r.expiresAt <= new Date().toISOString();
+            return (
+              <tr key={r.id}>
+                <td className="cmt-td">
+                  {r.personName}
+                  {r.roleName && <span className="text-slate-400"> — {r.roleName}</span>}
+                </td>
+                <td className="cmt-td w-28">
+                  {r.submittedAt ? (
+                    <span className="text-xs font-medium text-green-700">Submitted</span>
+                  ) : expired ? (
+                    <span className="text-xs font-medium text-amber-700">Link expired</span>
+                  ) : (
+                    <span className="text-xs text-slate-400">Pending</span>
+                  )}
+                </td>
+                <td className="cmt-td text-right">
+                  {!r.submittedAt && (
+                    <button
+                      type="button"
+                      className="cmt-btn-secondary mr-2 text-xs"
+                      disabled={regenerate.isPending}
+                      title="Issue a fresh link for this person (the old one stops working)"
+                      onClick={() => regenerate.mutate(r.id)}
+                    >
+                      {expired ? 'New link' : 'Regenerate'}
+                    </button>
+                  )}
+                  <CopyLinkButton token={r.token} />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

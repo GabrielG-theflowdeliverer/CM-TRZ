@@ -5,11 +5,17 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './app/App';
 import { ShareApp } from './app/ShareApp';
 import { createQueryClient } from './lib/queryClient';
-import { setShareViewToken } from './lib/api';
+import { setShareViewToken, setUnauthorizedHandler } from './lib/api';
 import { Toaster } from './ui/Toaster';
 import './index.css';
 
 const queryClient = createQueryClient();
+
+// A 401 from any request (session expired mid-session) bounces to the login
+// screen. Guarded so we don't loop when already on /login.
+setUnauthorizedHandler(() => {
+  if (!window.location.pathname.startsWith('/login')) window.location.assign('/login');
+});
 
 // Booting on /view/:token puts the whole SPA into view-only share mode: the
 // token becomes the router basename (so regular pages' absolute links resolve

@@ -101,11 +101,23 @@ existing dashboard components read-only, backed by a narrow
 `/api/share/:token` projection router exposing **only** dashboard-safe reads and
 **no** mutation routes. Mirror the survey tokenized-link pattern.
 
-### C. Deferred hardening (do before any public hosting)
+### C. Deferred hardening (do before any public hosting) — DONE
 
-- **Rate-limiting + token expiry** on `/api/survey/:token` and the share route.
-  Intentionally omitted while single-user/local. Add `express-rate-limit` and an
-  `expires_at` column (new migration) when the endpoints face the internet.
+- **Editor authentication** — single-editor login (scrypt password + stateless
+  HMAC session cookie); enabled when `CMT_SESSION_SECRET` + `CMT_EDITOR_PASSWORD_HASH`
+  are set, open otherwise. All of `/api` is guarded except health, `/api/auth/*`
+  and the public token routes.
+- **Token expiry** — migration `012` adds `survey_recipients.expires_at`
+  (5-day default — sent a few days before the session, then closed) and
+  `projects.share_token_expires_at` (90-day default).
+  Expired survey links → 410; expired share links → 404 (indistinguishable from
+  revoked, so expiry leaks nothing). Expiry is **per-recipient**, so one lapsed
+  link can be re-issued on its own: `POST /api/survey-recipients/:id/regenerate`
+  mints a fresh token + expiry for that person (a "Regenerate / New link" button
+  in the campaign panel), leaving everyone else's links intact.
+- **Rate-limiting** — `express-rate-limit` on `/api/auth/login` (10 / 15 min) and
+  the public `/api/survey` + `/api/share` routes (300 / 15 min); `trust proxy` set
+  for correct client IPs behind Fly's proxy.
 
 ## Conventions reminder
 

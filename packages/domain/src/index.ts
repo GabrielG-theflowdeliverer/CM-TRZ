@@ -11,6 +11,8 @@ export * from './content/adkar.js';
 export * from './content/competencyItems.js';
 export * from './content/helpTexts.js';
 export * from './content/surveyStructure.js';
+// App-provided starter content (documented as non-verbatim in the file itself)
+export * from './content/transferResponsibilities.js';
 
 // Calculations (Excel-parity business logic)
 export * from './calc/pct.js';
@@ -23,6 +25,7 @@ export * from './calc/health.js';
 export * from './calc/aggregate.js';
 export * from './calc/saturation.js';
 export * from './calc/outcomes.js';
+export * from './calc/transfer.js';
 
 // Entities (types + zod schemas)
 export * from './entities/common.js';
@@ -39,3 +42,4 @@ export * from './entities/docs.js';
 export * from './entities/survey.js';
 export * from './entities/outcomes.js';
 export * from './entities/reinforcement.js';
+export * from './entities/transfer.js';

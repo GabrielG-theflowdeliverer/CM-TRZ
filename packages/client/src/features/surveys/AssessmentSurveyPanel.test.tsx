@@ -94,8 +94,8 @@ describe('AssessmentSurveyPanel', () => {
         assessmentId: 'a1',
         createdAt: 'x',
         recipients: [
-          { id: 'rc1', roleId: 'r1', personName: 'Jane Doe', roleName: 'Sponsor', token: 'tok-1', submittedAt: 'y' },
-          { id: 'rc2', roleId: 'r2', personName: 'Al Roe', roleName: 'Manager', token: 'tok-2', submittedAt: null },
+          { id: 'rc1', roleId: 'r1', personName: 'Jane Doe', roleName: 'Sponsor', token: 'tok-1', submittedAt: 'y', expiresAt: null },
+          { id: 'rc2', roleId: 'r2', personName: 'Al Roe', roleName: 'Manager', token: 'tok-2', submittedAt: null, expiresAt: '2999-01-01T00:00:00.000Z' },
         ],
       },
     });
@@ -111,6 +111,32 @@ describe('AssessmentSurveyPanel', () => {
     expect(screen.getAllByRole('button', { name: /copy link/i })).toHaveLength(2);
   });
 
+  it('flags an expired link and regenerates just that recipient', async () => {
+    mockGet({
+      '/api/projects/p1/surveys': [
+        { id: 'c1', assessmentId: 'a1', createdAt: 'x', recipientCount: 1, submittedCount: 0 },
+      ],
+      '/api/surveys/c1': {
+        id: 'c1',
+        projectId: 'p1',
+        assessmentId: 'a1',
+        createdAt: 'x',
+        recipients: [
+          { id: 'rc2', roleId: 'r2', personName: 'Al Roe', roleName: 'Manager', token: 'tok-2', submittedAt: null, expiresAt: '2000-01-01T00:00:00.000Z' },
+        ],
+      },
+    });
+    const post = vi.spyOn(api, 'post').mockResolvedValue({
+      id: 'rc2', roleId: 'r2', personName: 'Al Roe', roleName: 'Manager', token: 'tok-new', submittedAt: null, expiresAt: '2999-01-01T00:00:00.000Z',
+    });
+
+    renderWithClient(<AssessmentSurveyPanel run={run()} projectId="p1" />);
+
+    expect(await screen.findByText('Link expired')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'New link' }));
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/survey-recipients/rc2/regenerate'));
+  });
+
   it('removes the campaign only after explicit confirmation', async () => {
     mockGet({
       '/api/projects/p1/surveys': [
@@ -122,7 +148,7 @@ describe('AssessmentSurveyPanel', () => {
         assessmentId: 'a1',
         createdAt: 'x',
         recipients: [
-          { id: 'rc1', roleId: 'r1', personName: 'Jane Doe', roleName: 'Sponsor', token: 'tok-1', submittedAt: 'y' },
+          { id: 'rc1', roleId: 'r1', personName: 'Jane Doe', roleName: 'Sponsor', token: 'tok-1', submittedAt: 'y', expiresAt: null },
         ],
       },
     });

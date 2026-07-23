@@ -45,6 +45,7 @@ export const NAV_SECTIONS: Array<{ title: string; items: Array<{ to: string; lab
       { to: 'reinforcement', label: 'Reinforcement' },
       { to: 'cm-performance', label: 'CM Performance' },
       { to: 'adapt-actions', label: 'Adapt Actions' },
+      { to: 'transfer-ownership', label: 'Transfer of Ownership' },
     ],
   },
   {

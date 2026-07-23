@@ -36,6 +36,18 @@ export function createSurveysRouter(db: Db): Router {
   return router;
 }
 
+/** Recipient-level practitioner action at /api/survey-recipients/:id */
+export function createSurveyRecipientsRouter(db: Db): Router {
+  const router = Router();
+
+  // Re-issue one recipient's link (fresh token + expiry) without disturbing others.
+  router.post('/:id/regenerate', (req, res) => {
+    res.json(service.regenerateRecipient(db, req.params.id));
+  });
+
+  return router;
+}
+
 /**
  * Public survey-capture surface at /api/survey/:token — the only routes a
  * respondent can reach. Exposes nothing about the project beyond the one survey

@@ -1,5 +1,5 @@
 import { Router, type RequestHandler } from 'express';
-import type { Db } from '../../infra/db.js';
+import { nowIso, type Db } from '../../infra/db.js';
 import { HttpError, notFound } from '../../infra/http.js';
 import * as repo from './share.repo.js';
 import * as projects from '../projects/projects.service.js';
@@ -40,7 +40,7 @@ export function createShareBrowseRouter(db: Db): Router {
       next(new HttpError(403, 'This link is view-only'));
       return;
     }
-    const projectId = repo.getProjectIdByShareToken(db, (req.params as Record<string, string>).token!);
+    const projectId = repo.getProjectIdByShareToken(db, (req.params as Record<string, string>).token!, nowIso());
     if (!projectId) {
       next(new HttpError(404, 'Shared view not found'));
       return;
