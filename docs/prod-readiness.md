@@ -13,7 +13,7 @@ Status legend: ⬜ not started · 🟡 in progress · ✅ done
 
 ---
 
-## 1. Security headers / `Referrer-Policy` — **blocker** · 🟡
+## 1. Security headers / `Referrer-Policy` — **blocker** · ✅
 
 **Why.** Survey and share links carry the access **token in the URL**
 (`/s/:token`, `/api/survey/:token`, `/api/share/:token`). With no `Referrer-Policy`,
@@ -32,12 +32,16 @@ token in the `Referer` header. There are also no `X-Content-Type-Options`,
   *Acceptance:* a supertest asserts the headers are present on an API response
   and that no `Referer` policy gap remains; `npm run check` green.
 
-- **1b — Content-Security-Policy (needs a running browser).** ⬜
-  Add a conservative CSP tuned to the built client (`default-src 'self'`, the
-  minimal `style-src`/`img-src`/`connect-src` the SPA actually needs), verify
-  in-browser via the `run` skill that the app is fully functional, then enable.
-  *Acceptance:* app loads and every page works with CSP on; no console CSP
-  violations; header asserted in a test.
+- **1b — Content-Security-Policy.** ✅
+  Conservative same-origin CSP tuned to the built client: `default-src 'self'`,
+  `script-src 'self'` (no inline-JS escape hatch), `style-src 'self'
+  'unsafe-inline'` (recharts sets inline `style=""` on SVG nodes),
+  `img-src 'self' data:`, `connect-src 'self'`, `object-src 'none'`,
+  `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`.
+  Verified in-browser (headless Chrome against the production server serving the
+  built SPA): home page and a demo project's chart pages mount fully, recharts
+  SVGs render, inline styles apply — nothing blocked. Header asserted in
+  `test/security-headers.test.ts`.
 
 ## 2. Verified first deploy — **blocker** · ⬜
 

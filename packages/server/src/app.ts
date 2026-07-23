@@ -71,20 +71,36 @@ export function createApp(db: Db, opts: { auth?: AuthConfig } = {}): Express {
   app.set('trust proxy', 1);
 
   // Security headers, applied to every response (API and the static SPA served
-  // from the same origin in production). The critical one here is a strict
+  // from the same origin in production). The critical one is a strict
   // Referrer-Policy: survey/share tokens ride in the URL (/s/:token,
   // /api/survey/:token, /api/share/:token), so a leaked Referer header would
   // leak an access credential. `no-referrer` closes that.
-  //
-  // Content-Security-Policy is intentionally left OFF for now: helmet's default
-  // CSP breaks the Vite-built SPA's inline styles, and a correct policy needs
-  // in-browser verification. Tracked as step 1b in docs/prod-readiness.md.
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      // Content-Security-Policy tuned to the built client, which is entirely
+      // same-origin: one module script + one stylesheet, no CDN/font/analytics
+      // hosts (verified against packages/client/dist). 'unsafe-inline' is needed
+      // only for styles — recharts sets inline style="" on its SVG nodes — and
+      // is a low-risk relaxation (no such allowance is made for scripts).
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          'default-src': ["'self'"],
+          'script-src': ["'self'"],
+          'style-src': ["'self'", "'unsafe-inline'"],
+          'img-src': ["'self'", 'data:'],
+          'font-src': ["'self'"],
+          'connect-src': ["'self'"],
+          'object-src': ["'none'"],
+          'base-uri': ["'self'"],
+          'form-action': ["'self'"],
+          'frame-ancestors': ["'none'"],
+        },
+      },
       referrerPolicy: { policy: 'no-referrer' },
       // The app is never meant to be embedded — deny all framing, not just
-      // cross-origin (helmet 8 defaults to SAMEORIGIN).
+      // cross-origin (helmet 8 defaults to SAMEORIGIN). Belt-and-braces with
+      // the frame-ancestors directive above.
       frameguard: { action: 'deny' },
     }),
   );
