@@ -2,10 +2,11 @@ import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PLAN_TYPES } from '@cmt/domain';
 import { api } from '../../lib/api';
-import type { PlanDto, RoleDto } from '../../lib/types';
+import type { PlanDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroups } from '../impact/useGroups';
 import { usePlans } from './usePlans';
+import { useRoles } from '../roles/useRoles';
 import { useBlueprints } from '../blueprints/useBlueprints';
 import { useActivityMutations } from '../activities/useActivities';
 import { ActivityTable, type ActivityTableContext } from '../activities/ActivityTable';
@@ -24,11 +25,7 @@ export function PlanDetailPage() {
   const { data: groups } = useGroups(projectId);
   const { data: plans } = usePlans(projectId);
   const { data: blueprints } = useBlueprints(projectId);
-  const { data: roles } = useQuery({
-    queryKey: ['roles', projectId],
-    queryFn: () => api.get<RoleDto[]>(`/api/projects/${projectId}/roles`),
-    enabled: projectId !== '',
-  });
+  const { data: roles } = useRoles(projectId);
   const activityMutations = useActivityMutations(projectId);
 
   const invalidateCaches = useInvalidateProjectCaches();

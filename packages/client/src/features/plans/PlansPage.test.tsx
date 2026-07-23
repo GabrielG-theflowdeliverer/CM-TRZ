@@ -86,6 +86,27 @@ describe('PlansPage', () => {
     expect(post.mock.calls[0]![1]).toEqual({ kind: 'extend', name: 'Coaching Plan' });
   });
 
+  it('falls back to em dashes for missing fields and keeps the plan when delete is cancelled', async () => {
+    mockGet({
+      '/api/projects/p1/plans': [
+        plan({ id: 'pl9', kind: 'extend', name: 'Bare Plan', planType: null, lastUpdated: null }),
+      ],
+    });
+    const del = vi.spyOn(api, 'del').mockResolvedValue(undefined);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    renderPage();
+    await screen.findByRole('link', { name: 'Bare Plan' });
+
+    // Missing planType and lastUpdated both render the em-dash placeholder.
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+
+    // Cancelling the confirm dialog leaves the plan untouched.
+    await userEvent.click(screen.getByRole('button', { name: '✕' }));
+    expect(confirm).toHaveBeenCalled();
+    expect(del).not.toHaveBeenCalled();
+  });
+
   it('only offers delete on extend plans and requires confirmation', async () => {
     mockGet();
     const del = vi.spyOn(api, 'del').mockResolvedValue(undefined);

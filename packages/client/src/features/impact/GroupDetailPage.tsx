@@ -9,9 +9,11 @@ import {
   adkarItemKey,
 } from '@cmt/domain';
 import { api } from '../../lib/api';
-import type { AssessmentDto, GroupDto, ResistanceItem, RoleDto, Roadmap } from '../../lib/types';
+import type { AssessmentDto, GroupDto, ResistanceItem } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useGroupMutations } from './useGroups';
+import { useRoles } from '../roles/useRoles';
+import { useRoadmap } from '../roadmap/useRoadmap';
 import { OrgGroupLinker } from './OrgGroupLinker';
 import { useAssessments, useInvalidateAssessments } from '../assessments/useAssessments';
 import { BarrierBadge, HeatCell, RiskBadge, ScorePicker, adkarCellColor, impactCellColor } from '../../ui/scores';
@@ -23,21 +25,13 @@ type GroupTab = (typeof TABS)[number];
 /** Cross-module summary hub for a group (roles, resistance, milestones, results). */
 function OverviewTab(props: { projectId: string; group: GroupDto; onSaveTags: (tags: string[]) => void }) {
   const { projectId, group } = props;
-  const { data: roles } = useQuery({
-    queryKey: ['roles', projectId],
-    queryFn: () => api.get<RoleDto[]>(`/api/projects/${projectId}/roles`),
-    enabled: projectId !== '',
-  });
+  const { data: roles } = useRoles(projectId);
   const { data: resistance } = useQuery({
     queryKey: ['resistance', projectId],
     queryFn: () => api.get<ResistanceItem[]>(`/api/projects/${projectId}/resistance`),
     enabled: projectId !== '',
   });
-  const { data: roadmap } = useQuery({
-    queryKey: ['roadmap', projectId],
-    queryFn: () => api.get<Roadmap>(`/api/projects/${projectId}/roadmap`),
-    enabled: projectId !== '',
-  });
+  const { data: roadmap } = useRoadmap(projectId);
 
   const linkedRoles = (roles ?? []).filter((r) => r.groupIds.includes(group.id));
   const groupResistance = (resistance ?? []).filter((r) => r.groupId === group.id);

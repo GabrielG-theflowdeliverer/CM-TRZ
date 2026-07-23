@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { ADKAR_ELEMENTS, ADKAR_LABELS, ADKAR_TACTICS, GAUGE_GAPS } from '@cmt/domain';
-import { api } from '../../lib/api';
-import type { RoleDto } from '../../lib/types';
 import { useProject } from '../../app/ProjectLayout';
 import { useBlueprint, useBlueprintMutations, useSnapshots } from './useBlueprints';
 import { useBlueprints } from './useBlueprints';
+import { useRoles } from '../roles/useRoles';
 import { useGroups } from '../impact/useGroups';
 import { usePlans } from '../plans/usePlans';
 import { useActivityMutations } from '../activities/useActivities';
@@ -30,11 +28,7 @@ export function BlueprintDetailPage() {
   const { data: groups } = useGroups(projectId);
   const { data: plans } = usePlans(projectId);
   const { data: blueprints } = useBlueprints(projectId);
-  const { data: roles } = useQuery({
-    queryKey: ['roles', projectId],
-    queryFn: () => api.get<RoleDto[]>(`/api/projects/${projectId}/roles`),
-    enabled: projectId !== '',
-  });
+  const { data: roles } = useRoles(projectId);
   const mutations = useBlueprintMutations(projectId, blueprintId);
   const activityMutations = useActivityMutations(projectId);
   const [tacticsFor, setTacticsFor] = useState<string | null>(null);
