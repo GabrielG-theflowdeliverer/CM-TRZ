@@ -33,6 +33,7 @@ import { createProjectTransferRouter, createTransferRouter } from './modules/tra
 import { createAuthRouter } from './modules/auth/auth.router.js';
 import { requireEditor, type AuthConfig } from './infra/auth.js';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 
 const FIFTEEN_MIN = 15 * 60 * 1000;
 
@@ -68,6 +69,26 @@ export function createApp(db: Db, opts: { auth?: AuthConfig } = {}): Express {
   // Behind Fly's proxy the real client IP is in X-Forwarded-For; trust one hop
   // so rate-limit keys on the caller, not the proxy.
   app.set('trust proxy', 1);
+
+  // Security headers, applied to every response (API and the static SPA served
+  // from the same origin in production). The critical one here is a strict
+  // Referrer-Policy: survey/share tokens ride in the URL (/s/:token,
+  // /api/survey/:token, /api/share/:token), so a leaked Referer header would
+  // leak an access credential. `no-referrer` closes that.
+  //
+  // Content-Security-Policy is intentionally left OFF for now: helmet's default
+  // CSP breaks the Vite-built SPA's inline styles, and a correct policy needs
+  // in-browser verification. Tracked as step 1b in docs/prod-readiness.md.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      referrerPolicy: { policy: 'no-referrer' },
+      // The app is never meant to be embedded — deny all framing, not just
+      // cross-origin (helmet 8 defaults to SAMEORIGIN).
+      frameguard: { action: 'deny' },
+    }),
+  );
+
   app.use(express.json({ limit: '20mb' }));
 
   // Liveness probe for orchestrators / load balancers.
