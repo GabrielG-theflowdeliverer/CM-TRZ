@@ -125,9 +125,18 @@ file sets `silent` to keep the suite quiet. Unit-tested in `test/log.test.ts`.
 *Beyond scope (YAGNI for one instance):* shipping logs to an external
 aggregator. `fly logs` + structured lines is the right altitude here.
 
-## 7. Accessibility (WCAG) — **low** · ⬜
+## 7. Accessibility (WCAG) — **low** · ✅
 
 Baseline pass on the practitioner UI and the respondent survey page.
+
+**Done:** `@axe-core/playwright` scans (WCAG 2.0/2.1 A + AA) run in the e2e suite
+(`e2e/a11y.spec.ts`) against the respondent survey page and the practitioner home
+page, gating on **critical/serious** impact (the baseline floor). Fixed what they
+flagged: the per-project status `<select>` now has an `aria-label` (was a
+critical `select-name` violation), and muted text that failed AA contrast under
+Tailwind v4's palette (`text-slate-400`, and `text-slate-500` on `bg-slate-100`
+chips) was darkened to `slate-600` in `HomePage`, `SurveyPage`, and the shared
+`BandChip`/`RiskBadge`. Both surfaces are now clean.
 
 ---
 

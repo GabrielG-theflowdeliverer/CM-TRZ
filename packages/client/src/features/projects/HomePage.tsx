@@ -68,7 +68,7 @@ export function HomePage() {
       <header className="mb-8 flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-bold">Change Management Tool</h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-600">
             Prosci methodology workspace — projects, assessments, ADKAR blueprints and CM plans.
           </p>
         </div>
@@ -124,7 +124,7 @@ export function HomePage() {
       </div>
 
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
           Projects ({visible.length})
         </h2>
         <div className="flex items-center gap-1.5">
@@ -132,7 +132,7 @@ export function HomePage() {
             <button
               key={f}
               className={`rounded px-2 py-1 text-xs font-medium ${
-                statusFilter === f ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-100'
+                statusFilter === f ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600 hover:bg-slate-100'
               }`}
               onClick={() => setStatusFilter(f)}
             >
@@ -143,7 +143,7 @@ export function HomePage() {
       </div>
 
       {visible.length === 0 && (
-        <div className="cmt-card py-12 text-center text-sm text-slate-500">
+        <div className="cmt-card py-12 text-center text-sm text-slate-600">
           No projects yet. Create your first change initiative above.
         </div>
       )}
@@ -166,7 +166,7 @@ export function HomePage() {
                       {project.status}
                     </span>
                   )}
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-600">
                     {project.projectType ?? 'No type'} · {project.pmApproach ?? 'No approach'}
                   </p>
                   {health && (
@@ -182,6 +182,7 @@ export function HomePage() {
                 <div className="flex shrink-0 items-center gap-1.5">
                   <select
                     className="cmt-input w-32 py-1 text-xs"
+                    aria-label={`Status for ${project.name}`}
                     value={project.status}
                     onChange={(e) => setStatus.mutate({ id: project.id, status: e.target.value })}
                   >
