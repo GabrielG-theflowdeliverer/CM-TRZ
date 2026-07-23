@@ -43,14 +43,23 @@ token in the `Referer` header. There are also no `X-Content-Type-Options`,
   SVGs render, inline styles apply — nothing blocked. Header asserted in
   `test/security-headers.test.ts`.
 
-## 2. Verified first deploy — **blocker** · ⬜
+## 2. Verified first deploy — **blocker** · 🟡 (runbook ready; deploy is the user's step)
 
 **Why.** The pipeline is "ready" but unproven. Needs three secrets set
 out-of-band (`CMT_SESSION_SECRET`, `CMT_EDITOR_PASSWORD_HASH`,
 `FLY_DEPLOY_TOKEN`) and one successful `flyctl deploy` observed booting on the
 volume, passing the `/api/health` check, and serving the SPA behind auth.
+
+**Prep done:** the production runtime was verified locally (`npm start` serves
+the built SPA, `/api/health` green, app mounts under CSP), and a full
+step-by-step is written in **`docs/deploy-runbook.md`** (app create, volume,
+secrets, `flyctl deploy --remote-only`, verify, CI token, rollback). The Docker
+*image build* can't be run on the dev box (no Docker daemon); Fly builds it
+remotely on first deploy — that deploy is the build test and needs the license
+holder's Fly account. Parked here until you host.
+
 *Acceptance:* a documented successful deploy; health endpoint green in prod;
-login works; a survey token round-trips.
+login works; a survey token round-trips (checklist at the end of the runbook).
 
 ## 3. PII / data-handling posture — **high** · ⬜
 
