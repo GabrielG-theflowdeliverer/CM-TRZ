@@ -56,7 +56,7 @@ These principles govern all work in this repo. When a change would violate one, 
 - Design for failure on the client is a live concern: surface mutation/query errors to the user and don't let autosave drop edits silently.
 
 ### Quality gate & testing
-- **`npm run check` (typecheck + tests) must be green before every commit.** Add `lint` to this gate if/when a linter is introduced.
+- **`npm run check` (typecheck + lint + coverage) must be green before every commit.** It mirrors the CI gate exactly: coverage runs the full test suite once and enforces the per-package coverage thresholds. (The lighter `npm run test` stays for quick iteration.)
 - Every behavioural change lands with tests at the right level: domain unit (vitest), server integration (supertest against a real in-memory SQLite with real migrations), client component (React Testing Library). A new `domain/calc` function must have a spec with boundary cases.
 - Prefer extending an existing pattern over inventing a new one.
 
