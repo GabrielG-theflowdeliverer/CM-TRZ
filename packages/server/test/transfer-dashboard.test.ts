@@ -110,6 +110,43 @@ describe('export / import', () => {
     await request(ctx.app).post('/api/import').send({ hello: 'world' }).expect(400);
   });
 
+  it('rejects an import row with a non-identifier column name (no SQL injection via keys)', async () => {
+    const projectId = await buildRichProject('Injectable');
+    const { body: payload } = await request(ctx.app).get(`/api/projects/${projectId}/export`).expect(200);
+    const tampered = {
+      ...payload,
+      project: { ...payload.project, 'evil); DROP TABLE projects;--': 'x' },
+    };
+    await request(ctx.app).post('/api/import').send(tampered).expect(400);
+    // The table is untouched — a fresh project still creates fine.
+    await request(ctx.app).post('/api/projects').send({ name: 'Still here' }).expect(201);
+  });
+
+  it('never carries the share token through export, import, or duplicate', async () => {
+    const projectId = await buildRichProject('Shared');
+    const { body: share } = await request(ctx.app).post(`/api/projects/${projectId}/share`).expect(201);
+    const token = share.token as string;
+
+    // Export must not leak the live token (it's an access credential).
+    const { body: payload } = await request(ctx.app).get(`/api/projects/${projectId}/export`).expect(200);
+    expect(payload.project.share_token).toBeUndefined();
+    expect(JSON.stringify(payload)).not.toContain(token);
+
+    // Even a hand-edited payload that re-adds a token must import cleanly (token dropped),
+    // not collide on the UNIQUE(share_token) index.
+    const withToken = { ...payload, project: { ...payload.project, share_token: token } };
+    const { body: imported } = await request(ctx.app).post('/api/import').send(withToken).expect(201);
+    const { body: importedShare } = await request(ctx.app).get(`/api/projects/${imported.id}/share`).expect(200);
+    expect(importedShare.token).toBeNull();
+
+    // Duplicating a project that has sharing enabled must not hit the UNIQUE index either.
+    const { body: dup } = await request(ctx.app).post(`/api/projects/${projectId}/duplicate`).expect(201);
+    const { body: dupShare } = await request(ctx.app).get(`/api/projects/${dup.id}/share`).expect(200);
+    expect(dupShare.token).toBeNull();
+    // The original keeps its own working link.
+    await request(ctx.app).get(`/api/share/${token}`).expect(200);
+  });
+
   it('imports legacy v1 exports, unifying the old activity tables', async () => {
     const projectId = await buildRichProject('Legacy source');
     const { body: v2 } = await request(ctx.app).get(`/api/projects/${projectId}/export`).expect(200);
