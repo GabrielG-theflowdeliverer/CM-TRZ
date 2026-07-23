@@ -3,6 +3,7 @@ import { ASSESSMENT_STATUSES, ASSESSMENT_TYPE_LABELS } from '@cmt/domain';
 import { useProject } from '../../app/ProjectLayout';
 import { useAssessment, useSaveResponses, useUpdateAssessment } from './useAssessments';
 import { DateInput, Select, TextArea, TextField } from '../../ui/controls';
+import { queryGate } from '../../ui/QueryGate';
 import { PctEditor } from './PctEditor';
 import { RiskEditor } from './RiskEditor';
 import { CompetencyEditor } from './CompetencyEditor';
@@ -12,10 +13,13 @@ import { AssessmentSurveyPanel } from '../surveys/AssessmentSurveyPanel';
 export function AssessmentRunPage() {
   const { projectId } = useProject();
   const { assessmentId = '' } = useParams();
-  const { data: run } = useAssessment(assessmentId);
+  const runQuery = useAssessment(assessmentId);
+  const run = runQuery.data;
   const save = useSaveResponses(projectId, assessmentId);
   const update = useUpdateAssessment(projectId, assessmentId);
 
+  const gate = queryGate(runQuery, 'assessment');
+  if (gate) return gate;
   if (!run) return null;
   const setScore = (itemKey: string, value: number | null) => save.mutate({ [itemKey]: value });
 

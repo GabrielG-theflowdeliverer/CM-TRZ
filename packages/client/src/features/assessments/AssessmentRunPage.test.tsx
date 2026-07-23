@@ -71,6 +71,18 @@ describe('AssessmentRunPage', () => {
     await waitFor(() => expect(put).toHaveBeenCalledWith('/api/assessments/a1/responses', { [pctItemKey('success', 0)]: 3 }));
   });
 
+  it('shows a loading panel until the assessment resolves (no blank screen)', () => {
+    vi.spyOn(api, 'get').mockReturnValue(new Promise(() => {})); // never resolves -> stays pending
+    renderWithClient(
+      <MemoryRouter initialEntries={['/projects/p1/assessments/a1']}>
+        <Routes>
+          <Route path="/projects/:projectId/assessments/:assessmentId" element={<AssessmentRunPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/Loading assessment/)).toBeInTheDocument();
+  });
+
   it('has a single notes editor that autosaves (no duplicate bound to run.notes)', async () => {
     mockGet();
     const patch = vi.spyOn(api, 'patch').mockResolvedValue({ ...pctRun, notes: 'Follow up next quarter' });

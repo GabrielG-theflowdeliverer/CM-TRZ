@@ -5,6 +5,7 @@ import { useProject } from '../../app/ProjectLayout';
 import { useBlueprint, useBlueprintMutations, useSnapshots } from './useBlueprints';
 import { useBlueprints } from './useBlueprints';
 import { useRoles } from '../roles/useRoles';
+import { queryGate } from '../../ui/QueryGate';
 import { useGroups } from '../impact/useGroups';
 import { usePlans } from '../plans/usePlans';
 import { useActivityMutations } from '../activities/useActivities';
@@ -23,7 +24,8 @@ interface SnapshotActivity {
 export function BlueprintDetailPage() {
   const { projectId } = useProject();
   const { blueprintId = '' } = useParams();
-  const { data: blueprint } = useBlueprint(projectId, blueprintId);
+  const blueprintQuery = useBlueprint(projectId, blueprintId);
+  const blueprint = blueprintQuery.data;
   const { data: snapshots } = useSnapshots(blueprintId);
   const { data: groups } = useGroups(projectId);
   const { data: plans } = usePlans(projectId);
@@ -35,6 +37,8 @@ export function BlueprintDetailPage() {
   const [snapshotOpen, setSnapshotOpen] = useState(false);
   const [viewSnapshot, setViewSnapshot] = useState<string | null>(null);
 
+  const gate = queryGate(blueprintQuery, 'blueprint');
+  if (gate) return gate;
   if (!blueprint) return null;
   const elementByKey = new Map(blueprint.elements.map((e) => [e.element, e]));
   const snapshot = (snapshots ?? []).find((s) => s.id === viewSnapshot) as

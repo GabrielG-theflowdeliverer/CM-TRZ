@@ -51,6 +51,12 @@ function renderPage() {
 afterEach(() => vi.restoreAllMocks());
 
 describe('PlanDetailPage', () => {
+  it('shows a loading panel until the plan resolves (no blank screen)', () => {
+    vi.spyOn(api, 'get').mockReturnValue(new Promise(() => {}));
+    renderPage();
+    expect(screen.getByText(/Loading plan/)).toBeInTheDocument();
+  });
+
   it('renders the plan header, progress summary and metadata fields', async () => {
     mockGet();
     renderPage();

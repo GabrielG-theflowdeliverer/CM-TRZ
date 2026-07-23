@@ -7,6 +7,7 @@ import { useProject } from '../../app/ProjectLayout';
 import { useGroups } from '../impact/useGroups';
 import { usePlans } from './usePlans';
 import { useRoles } from '../roles/useRoles';
+import { queryGate } from '../../ui/QueryGate';
 import { useBlueprints } from '../blueprints/useBlueprints';
 import { useActivityMutations } from '../activities/useActivities';
 import { ActivityTable, type ActivityTableContext } from '../activities/ActivityTable';
@@ -17,11 +18,12 @@ export function PlanDetailPage() {
   const { projectId, project } = useProject();
   const { planId = '' } = useParams();
   const queryClient = useQueryClient();
-  const { data: plan } = useQuery({
+  const planQuery = useQuery({
     queryKey: ['plans', projectId, planId],
     queryFn: () => api.get<PlanDto>(`/api/plans/${planId}`),
     enabled: planId !== '',
   });
+  const plan = planQuery.data;
   const { data: groups } = useGroups(projectId);
   const { data: plans } = usePlans(projectId);
   const { data: blueprints } = useBlueprints(projectId);
@@ -42,6 +44,8 @@ export function PlanDetailPage() {
     onSuccess: refresh,
   });
 
+  const gate = queryGate(planQuery, 'plan');
+  if (gate) return gate;
   if (!plan) return null;
   const progress = plan.computed.progress;
 
