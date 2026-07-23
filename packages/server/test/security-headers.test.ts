@@ -28,9 +28,19 @@ describe('security headers', () => {
     expect(res.headers['x-content-type-options']).toBe('nosniff');
   });
 
-  it('does NOT emit a Content-Security-Policy yet (deferred to step 1b)', async () => {
+  it('emits a same-origin Content-Security-Policy', async () => {
     const { app } = createTestApp();
     const res = await request(app).get('/api/health');
-    expect(res.headers['content-security-policy']).toBeUndefined();
+    const csp = res.headers['content-security-policy'];
+    expect(csp).toBeDefined();
+    // Scripts are same-origin only — no 'unsafe-inline' escape hatch for JS.
+    expect(csp).toContain("script-src 'self'");
+    expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
+    // Styles need 'unsafe-inline' because recharts sets inline style="" on its
+    // SVG nodes (verified in-browser — see docs/prod-readiness.md item 1b).
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+    // No embedding, no plugins.
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("object-src 'none'");
   });
 });
