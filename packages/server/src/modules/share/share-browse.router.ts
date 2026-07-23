@@ -46,6 +46,9 @@ export function createShareBrowseRouter(db: Db): Router {
       return;
     }
     res.locals.shareProjectId = projectId;
+    // Signals reused routers to skip any write-on-read (e.g. cm-perf reconcile),
+    // so the "view-only" guarantee holds below the HTTP layer too.
+    res.locals.readOnly = true;
     next();
   };
   router.use('/:token', guard);
@@ -100,7 +103,9 @@ export function createShareBrowseRouter(db: Db): Router {
     res.json(owned(res, plans.getPlan(db, req.params.id), 'Plan'));
   });
   router.get('/:token/cm-perf-reports/:id', (req, res) => {
-    res.json(owned(res, cmPerf.getReport(db, req.params.id), 'Report'));
+    // reconcile:false keeps this read pure — no write to another project before
+    // the ownership check below can 404 a foreign report.
+    res.json(owned(res, cmPerf.getReport(db, req.params.id, { reconcile: false }), 'Report'));
   });
 
   return router;

@@ -97,19 +97,29 @@ function assemble(db: Db, row: ReportRow): CmPerfReport {
   };
 }
 
-export function listReports(db: Db, projectId: string): CmPerfReport[] {
+/**
+ * Reconciling items is a write, so it must be skippable: read-only callers (the
+ * share surface) pass `{ reconcile: false }` to keep the GET side-effect-free.
+ * They then see items as of the last practitioner view — correct graceful
+ * degradation, and never a write to someone else's project.
+ */
+interface ReadOpts {
+  reconcile?: boolean;
+}
+
+export function listReports(db: Db, projectId: string, opts: ReadOpts = {}): CmPerfReport[] {
   getProject(db, projectId);
   const rows = db
     .prepare('SELECT * FROM cm_perf_reports WHERE project_id = ? ORDER BY COALESCE(date, created_at), rowid')
     .all(projectId) as ReportRow[];
-  for (const row of rows) reconcileItems(db, row.id, projectId);
+  if (opts.reconcile !== false) for (const row of rows) reconcileItems(db, row.id, projectId);
   return rows.map((row) => assemble(db, row));
 }
 
-export function getReport(db: Db, id: string): CmPerfReport {
+export function getReport(db: Db, id: string, opts: ReadOpts = {}): CmPerfReport {
   const row = db.prepare('SELECT * FROM cm_perf_reports WHERE id = ?').get(id) as ReportRow | undefined;
   if (!row) notFound('CM performance report');
-  reconcileItems(db, row.id, row.project_id);
+  if (opts.reconcile !== false) reconcileItems(db, row.id, row.project_id);
   return assemble(db, row);
 }
 
