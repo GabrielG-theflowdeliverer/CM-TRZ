@@ -28,7 +28,7 @@ export function AssessmentRunPage() {
         <h2 className="text-xl font-bold">{ASSESSMENT_TYPE_LABELS[run.type]}</h2>
       </div>
 
-      <div className="cmt-card grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="cmt-card grid grid-cols-2 gap-3 md:grid-cols-4">
         <div>
           <label className="cmt-label">Label</label>
           <TextField value={run.label} onSave={(v) => update.mutate({ label: v })} placeholder="e.g. Q3 check" />
@@ -49,10 +49,6 @@ export function AssessmentRunPage() {
             onSave={(v) => update.mutate({ status: v })}
           />
         </div>
-        <div>
-          <label className="cmt-label">Notes</label>
-          <TextField value={run.notes} onSave={(v) => update.mutate({ notes: v })} />
-        </div>
       </div>
 
       {run.type === 'pct' && <PctEditor run={run} onScore={setScore} />}
@@ -64,7 +60,12 @@ export function AssessmentRunPage() {
 
       <div className="cmt-card">
         <label className="cmt-label">Assessment notes</label>
-        <TextArea value={run.notes} onSave={(v) => update.mutate({ notes: v })} rows={3} />
+        <TextArea
+          value={run.notes}
+          onSave={(v) => update.mutate({ notes: v })}
+          rows={3}
+          placeholder="Notes on this assessment…"
+        />
       </div>
 
       <AssessmentSurveyPanel run={run} projectId={projectId} />
