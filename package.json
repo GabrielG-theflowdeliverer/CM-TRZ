@@ -15,10 +15,12 @@
     "check": "npm run typecheck && npm run lint && npm run coverage",
     "start": "npm run start -w @cmt/server",
     "backup": "npm run backup -w @cmt/server",
-    "coverage": "npm run coverage -ws --if-present"
+    "coverage": "npm run coverage -ws --if-present",
+    "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.61.1",
     "@vitest/coverage-v8": "^3.2.7",
     "concurrently": "^9.1.2",
     "eslint": "^9.39.5",
