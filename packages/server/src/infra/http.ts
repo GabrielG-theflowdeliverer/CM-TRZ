@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError, type ZodTypeAny, type z } from 'zod';
+import { logger } from './log.js';
 
 export class HttpError extends Error {
   constructor(
@@ -28,7 +29,7 @@ export function parseBody<S extends ZodTypeAny>(schema: S, body: unknown): z.out
   return result.data;
 }
 
-export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction): void {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: err.message });
     return;
@@ -37,6 +38,15 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     res.status(400).json({ error: err.issues.map((i) => i.message).join('; ') });
     return;
   }
-  console.error(err);
+  // Unexpected: log with request context (structured, so it's findable in
+  // `fly logs`) but never leak the message or stack to the client.
+  logger.error({
+    msg: 'unhandled',
+    method: req.method,
+    path: req.path,
+    status: 500,
+    err: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+  });
   res.status(500).json({ error: 'Internal server error' });
 }
