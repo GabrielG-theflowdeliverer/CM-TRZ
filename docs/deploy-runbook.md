@@ -82,6 +82,18 @@ GitHub Actions secret `FLY_DEPLOY_TOKEN`. To wire it up:
 Until this is set, deploys are manual via the `flyctl deploy` step above (which
 is fine, and arguably preferable for a single-user app you deploy deliberately).
 
+## Enable off-site backups (optional)
+`.github/workflows/backup.yml` takes a weekly encrypted copy off Fly. It needs
+two GitHub secrets:
+```
+# SSH token so the workflow can reach the machine:
+! fly tokens create deploy --app <your-slug> --expiry 8760h   # reuse or make a second
+! gh secret set FLY_SSH_TOKEN --body '<paste-token>'
+# AES-256 key for the artifact — keep this value safe (losing it = unrecoverable backups):
+! gh secret set BACKUP_ENCRYPTION_KEY --body "$(openssl rand -hex 32)"
+```
+Restore/decrypt instructions: see `docs/data-handling.md` → Encryption at rest.
+
 ## Rollback
 ```
 ! fly releases --app <your-slug>            # list releases
