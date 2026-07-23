@@ -32,11 +32,15 @@ export function useApplyReschedule() {
     },
     onSuccess: (changes) => {
       invalidateCaches(['saturation']);
+      // The cascade re-dates PCT assessments, so any open assessment-detail view
+      // must refresh. That query is keyed ['assessment', assessmentId] — an id we
+      // don't have here — so invalidate the whole family once (a projectId here
+      // never matched and left the detail stale).
+      void queryClient.invalidateQueries({ queryKey: ['assessment'] });
       for (const c of changes) {
         void queryClient.invalidateQueries({ queryKey: ['roadmap', c.projectId] });
         void queryClient.invalidateQueries({ queryKey: ['project', c.projectId] });
         void queryClient.invalidateQueries({ queryKey: ['assessments', c.projectId] });
-        void queryClient.invalidateQueries({ queryKey: ['assessment', c.projectId] });
       }
     },
   });
