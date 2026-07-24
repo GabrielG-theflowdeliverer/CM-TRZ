@@ -19,6 +19,7 @@ export default defineConfig({
         'src/backup-cli.ts',
         'src/hash-password.ts',
         'src/online-backup.ts',
+        'src/seed-demo.ts',
         'src/infra/migrations/**',
         '**/*.test.ts',
       ],
