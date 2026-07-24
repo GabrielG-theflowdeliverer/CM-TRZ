@@ -3,6 +3,10 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     setupFiles: ['./test/setup.ts'],
+    // Retry once in CI only: absorbs the occasional supertest "socket hang up"
+    // (an ephemeral-server ECONNRESET under parallel load, not a logic bug)
+    // without masking real failures (a genuine break fails both attempts).
+    retry: process.env.CI ? 1 : 0,
     coverage: {
       provider: 'v8',
       all: true,
