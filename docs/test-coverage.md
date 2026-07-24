@@ -61,5 +61,6 @@ End-to-end (Playwright) for the cross-browser survey journey (respondent submits
 ## Definition of done
 - `@vitest/coverage-v8` installed; per-package thresholds enforced in CI (required check).
 - `content/**` excluded from domain coverage.
-- Client line coverage raised to **≥60%** by backfilling the high-value pages above, thresholds ratcheted to match.
+- Client line coverage raised from ~60% to **~83%** (stmts/lines) by backfilling the high-value pages; floors ratcheted to just below current (stmts/lines 81, branches 82, funcs 67) to lock the gains in. Functions (~68%) stays the weak metric — the next lever is testing the remaining 0%-covered surfaces (e.g. `WhyCmPage`, `DocHeader`, `useDoc`).
 - Server and domain-logic floors held at ≥90% lines / ≥85% branch.
+- Both suites retry once **in CI only** (`retry: process.env.CI ? 1 : 0`) to absorb infra flakes (supertest `socket hang up`, RTL timing under load) without masking real breaks.

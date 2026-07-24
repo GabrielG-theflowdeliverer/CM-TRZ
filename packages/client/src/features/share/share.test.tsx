@@ -119,7 +119,9 @@ describe('ShareApp', () => {
     // Landed on the real dashboard page inside the shared shell.
     expect(await screen.findByText('View only')).toBeInTheDocument();
     await screen.findByText('Project Dashboard');
-    expect(screen.getAllByText('CRM Rollout').length).toBeGreaterThan(0);
+    // The project name renders from a separate query than the dashboard heading,
+    // so wait for it rather than asserting synchronously (was a CI flake).
+    expect((await screen.findAllByText('CRM Rollout')).length).toBeGreaterThan(0);
     // Full nav is there — except Settings.
     expect(screen.getByText('Assessments')).toBeInTheDocument();
     expect(screen.getByText('Roadmap')).toBeInTheDocument();
