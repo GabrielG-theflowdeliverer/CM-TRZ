@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import type { Db } from '../../infra/db.js';
 import { HttpError, parseBody, projectIdParam } from '../../infra/http.js';
-import * as service from './transfer.service.js';
+import { exportProject } from './project-export.service.js';
+import { importProject, projectExportSchema } from './project-import.service.js';
 import { CSV_DATASETS, exportAllCsv, exportCsv, type CsvDataset } from './csv-export.service.js';
 
 /** GET /api/projects/:projectId/export and /export/csv[/:dataset] */
@@ -9,7 +10,7 @@ export function createProjectExportRouter(db: Db): Router {
   const router = Router({ mergeParams: true });
 
   router.get('/', (req, res) => {
-    const payload = service.exportProject(db, projectIdParam(req));
+    const payload = exportProject(db, projectIdParam(req));
     res.setHeader('Content-Disposition', 'attachment; filename="project-export.json"');
     res.json(payload);
   });
@@ -35,8 +36,8 @@ export function createProjectExportRouter(db: Db): Router {
 export function createImportRouter(db: Db): Router {
   const router = Router();
   router.post('/', (req, res) => {
-    const payload = parseBody(service.projectExportSchema, req.body);
-    const project = service.importProject(db, payload);
+    const payload = parseBody(projectExportSchema, req.body);
+    const project = importProject(db, payload);
     res.status(201).json(project);
   });
   return router;
