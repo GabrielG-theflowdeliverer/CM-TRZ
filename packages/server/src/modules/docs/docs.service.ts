@@ -1,8 +1,9 @@
 import { DOC_FIELDS, type DocKey, type ResistanceItem } from '@cmt/domain';
 import { newId, type Db } from '../../infra/db.js';
-import { HttpError, notFound } from '../../infra/http.js';
+import { notFound } from '../../infra/http.js';
 import { getProject } from '../projects/projects.service.js';
 import * as repo from './docs.repo.js';
+import { assertGroupInProject } from '../impact/impact.guards.js';
 
 export function getDoc(db: Db, projectId: string, docKey: DocKey): Record<string, string | null> {
   getProject(db, projectId);
@@ -59,9 +60,7 @@ export function createResistance(
   },
 ): ResistanceItem {
   getProject(db, projectId);
-  if (input.groupId && repo.getGroupProjectId(db, input.groupId) !== projectId) {
-    throw new HttpError(400, 'groupId does not belong to this project');
-  }
+  assertGroupInProject(db, projectId, input.groupId);
   const id = newId();
   repo.insertResistance(db, {
     id,

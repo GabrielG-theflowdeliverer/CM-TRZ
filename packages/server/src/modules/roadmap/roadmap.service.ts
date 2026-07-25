@@ -1,9 +1,9 @@
 import { ADKAR_ELEMENTS, MAX_RELEASES, type Roadmap, type RoadmapMode } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
-import { HttpError } from '../../infra/http.js';
 import { getProject } from '../projects/projects.service.js';
 import { syncRoadmapPctSchedule } from '../assessments/assessments.service.js';
 import * as repo from './roadmap.repo.js';
+import { assertGroupInProject } from '../impact/impact.guards.js';
 
 /** A project with no roadmap row yet reads as this — see getRoadmap. */
 const DEFAULT_ROADMAP: Omit<repo.RoadmapRow, 'project_id'> = {
@@ -50,11 +50,7 @@ export function updateRoadmap(
   },
 ): Roadmap {
   const current = getRoadmap(db, projectId);
-  for (const m of input.adkarMilestones ?? []) {
-    if (m.groupId && repo.getGroupProjectId(db, m.groupId) !== projectId) {
-      throw new HttpError(400, 'groupId does not belong to this project');
-    }
-  }
+  for (const m of input.adkarMilestones ?? []) assertGroupInProject(db, projectId, m.groupId);
   // Only real releases and real ADKAR elements are persisted; anything else is ignored.
   const releases = (input.releases ?? []).filter((r) => r.releaseNo >= 1 && r.releaseNo <= MAX_RELEASES);
   const milestones = (input.adkarMilestones ?? []).filter((m) =>

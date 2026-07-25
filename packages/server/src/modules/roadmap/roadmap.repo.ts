@@ -88,14 +88,3 @@ export function upsertMilestones(
   for (const m of milestones) stmt.run(projectId, m.releaseNo, m.element, m.groupId ?? '', m.date);
 }
 
-/**
- * Owning project of an impacted group, for the "this group is in this project"
- * check on a milestone. The row belongs to the impact module; only its project
- * ownership is read here.
- */
-export function getGroupProjectId(db: Db, groupId: string): string | null {
-  const row = db.prepare('SELECT project_id FROM impacted_groups WHERE id = ?').get(groupId) as
-    | { project_id: string }
-    | undefined;
-  return row?.project_id ?? null;
-}

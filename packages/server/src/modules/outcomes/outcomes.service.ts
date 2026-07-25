@@ -7,10 +7,10 @@ import {
   type Objective,
 } from '@cmt/domain';
 import { newId, nowIso, type Db } from '../../infra/db.js';
-import { HttpError, notFound } from '../../infra/http.js';
+import { notFound } from '../../infra/http.js';
 import * as repo from './outcomes.repo.js';
 import { getProject } from '../projects/projects.service.js';
-import { getGroupRow } from '../impact/impact.repo.js';
+import { assertGroupInProject } from '../impact/impact.guards.js';
 
 export type MetricWithData = Metric & { measurements: Measurement[]; computed: MetricRealization };
 export type ObjectiveWithMetrics = Objective & { metrics: MetricWithData[]; realization: number | null };
@@ -85,10 +85,7 @@ export function createMetric(
   input: { kind: 'adoption' | 'benefit'; name: string; unit?: string | null; baseline?: number | null; target?: number | null; direction: 'increase' | 'decrease'; adoptionMeasure?: string | null; groupId?: string | null },
 ): Metric {
   const objective = repo.getObjective(db, objectiveId) ?? notFound('Objective');
-  if (input.groupId != null) {
-    const group = getGroupRow(db, input.groupId);
-    if (!group || group.project_id !== objective.projectId) throw new HttpError(400, 'groupId is not in this project');
-  }
+  assertGroupInProject(db, objective.projectId, input.groupId);
   const id = newId();
   repo.insertMetric(db, {
     id,
@@ -108,10 +105,7 @@ export function createMetric(
 }
 export function updateMetric(db: Db, id: string, fields: Parameters<typeof repo.updateMetric>[2]): Metric {
   const metric = repo.getMetric(db, id) ?? notFound('Metric');
-  if (fields.groupId != null) {
-    const group = getGroupRow(db, fields.groupId);
-    if (!group || group.project_id !== metric.projectId) throw new HttpError(400, 'groupId is not in this project');
-  }
+  assertGroupInProject(db, metric.projectId, fields.groupId);
   if (!repo.updateMetric(db, id, fields)) notFound('Metric');
   return repo.getMetric(db, id)!;
 }

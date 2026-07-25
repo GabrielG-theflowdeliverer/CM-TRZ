@@ -69,13 +69,6 @@ export function getGroupName(db: Db, groupId: string): string | null {
   return row?.name ?? null;
 }
 
-/** Owning project of a group, for the "this group is in this project" check. */
-export function getGroupProjectId(db: Db, groupId: string): string | null {
-  const row = db.prepare('SELECT project_id FROM impacted_groups WHERE id = ?').get(groupId) as
-    | { project_id: string }
-    | undefined;
-  return row?.project_id ?? null;
-}
 
 export interface SnapshotRow {
   id: string;
