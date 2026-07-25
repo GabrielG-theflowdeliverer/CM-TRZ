@@ -9,7 +9,7 @@ import {
   snapshotCreateSchema,
 } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
-import { parseBody } from '../../infra/http.js';
+import { parseBody, projectIdParam } from '../../infra/http.js';
 import * as service from './blueprints.service.js';
 
 const blueprintActivitySchema = activityCreateSchema.extend({ element: z.enum(ADKAR_ELEMENTS) });
@@ -19,12 +19,12 @@ export function createProjectBlueprintsRouter(db: Db): Router {
   const router = Router({ mergeParams: true });
 
   router.get('/', (req, res) => {
-    res.json(service.listBlueprints(db, (req.params as Record<string, string>).projectId!));
+    res.json(service.listBlueprints(db, projectIdParam(req)));
   });
 
   router.post('/', (req, res) => {
     const input = parseBody(blueprintCreateSchema, req.body);
-    res.status(201).json(service.createBlueprint(db, (req.params as Record<string, string>).projectId!, input));
+    res.status(201).json(service.createBlueprint(db, projectIdParam(req), input));
   });
 
   return router;

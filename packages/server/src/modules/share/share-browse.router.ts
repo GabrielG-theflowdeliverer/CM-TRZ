@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from 'express';
 import { nowIso, type Db } from '../../infra/db.js';
-import { HttpError, notFound } from '../../infra/http.js';
+import { HttpError, notFound, projectIdParam, tokenParam } from '../../infra/http.js';
 import * as repo from './share.repo.js';
 import * as projects from '../projects/projects.service.js';
 import * as assessments from '../assessments/assessments.service.js';
@@ -40,7 +40,7 @@ export function createShareBrowseRouter(db: Db): Router {
       next(new HttpError(403, 'This link is view-only'));
       return;
     }
-    const projectId = repo.getProjectIdByShareToken(db, (req.params as Record<string, string>).token!, nowIso());
+    const projectId = repo.getProjectIdByShareToken(db, tokenParam(req), nowIso());
     if (!projectId) {
       next(new HttpError(404, 'Shared view not found'));
       return;
@@ -56,7 +56,7 @@ export function createShareBrowseRouter(db: Db): Router {
   // ---- Project-scoped mirror: verify the path names the token's project,
   // then reuse the real routers (the guard already blocked every write).
   const pinProject: RequestHandler = (req, res, next) => {
-    if ((req.params as Record<string, string>).projectId !== res.locals.shareProjectId) {
+    if (projectIdParam(req) !== res.locals.shareProjectId) {
       next(new HttpError(404, 'Shared view not found'));
       return;
     }
@@ -67,7 +67,7 @@ export function createShareBrowseRouter(db: Db): Router {
   };
 
   router.get('/:token/projects/:projectId', pinProject, (req, res) => {
-    res.json(projects.getProject(db, (req.params as Record<string, string>).projectId!));
+    res.json(projects.getProject(db, projectIdParam(req)));
   });
   project('/assessments', createProjectAssessmentsRouter(db));
   project('/groups', createProjectGroupsRouter(db));

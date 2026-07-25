@@ -6,24 +6,23 @@ import {
   trackingEntryUpdateSchema,
 } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
-import { parseBody } from '../../infra/http.js';
+import { parseBody, projectIdParam } from '../../infra/http.js';
 import * as service from './tracking.service.js';
 
 /** Nested under /api/projects/:projectId — tracking, cm-perf and adapt-actions collections. */
 export function createProjectTrackingRouter(db: Db): Router {
   const router = Router({ mergeParams: true });
-  const projectId = (req: { params: unknown }): string => (req.params as Record<string, string>).projectId!;
 
-  router.get('/tracking', (req, res) => res.json(service.listTracking(db, projectId(req))));
+  router.get('/tracking', (req, res) => res.json(service.listTracking(db, projectIdParam(req))));
   router.post('/tracking', (req, res) => {
     const input = parseBody(trackingEntryCreateSchema, req.body);
-    res.status(201).json(service.createTracking(db, projectId(req), input));
+    res.status(201).json(service.createTracking(db, projectIdParam(req), input));
   });
 
-  router.get('/adapt-actions', (req, res) => res.json(service.listAdapt(db, projectId(req))));
+  router.get('/adapt-actions', (req, res) => res.json(service.listAdapt(db, projectIdParam(req))));
   router.post('/adapt-actions', (req, res) => {
     const input = parseBody(adaptActionCreateSchema, req.body);
-    res.status(201).json(service.createAdapt(db, projectId(req), input));
+    res.status(201).json(service.createAdapt(db, projectIdParam(req), input));
   });
 
   return router;

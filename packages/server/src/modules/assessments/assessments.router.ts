@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { assessmentCreateSchema, assessmentUpdateSchema, responsesSchemaFor } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
-import { notFound, parseBody } from '../../infra/http.js';
+import { notFound, parseBody, projectIdParam } from '../../infra/http.js';
 import * as service from './assessments.service.js';
 import * as repo from './assessments.repo.js';
 
@@ -12,7 +12,7 @@ export function createProjectAssessmentsRouter(db: Db): Router {
   router.get('/', (req, res) => {
     const { type, subjectKind, subjectId } = req.query as Record<string, string | undefined>;
     res.json(
-      service.listAssessments(db, (req.params as Record<string, string>).projectId!, {
+      service.listAssessments(db, projectIdParam(req), {
         type,
         subjectKind,
         subjectId,
@@ -22,7 +22,7 @@ export function createProjectAssessmentsRouter(db: Db): Router {
 
   router.post('/', (req, res) => {
     const input = parseBody(assessmentCreateSchema, req.body);
-    res.status(201).json(service.createAssessment(db, (req.params as Record<string, string>).projectId!, input));
+    res.status(201).json(service.createAssessment(db, projectIdParam(req), input));
   });
 
   return router;
