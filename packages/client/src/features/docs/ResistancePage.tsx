@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { ResistanceItem } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useGroups } from '../impact/useGroups';
 import { Select, TextArea } from '../../ui/controls';
 

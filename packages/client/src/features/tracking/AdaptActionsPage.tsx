@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ADAPT_ACTIONS_PROMPTS } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { AdaptAction } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { TextArea } from '../../ui/controls';
 
 export function AdaptActionsPage() {

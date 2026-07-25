@@ -14,7 +14,7 @@ import {
 } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { RoleDto } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useGroups } from '../impact/useGroups';
 import { useRoles } from './useRoles';
 import { BarrierBadge, ScorePicker, adkarCellColor } from '../../ui/scores';

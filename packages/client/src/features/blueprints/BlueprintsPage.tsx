@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useBlueprintMutations, useBlueprints } from './useBlueprints';
 import { useGroups } from '../impact/useGroups';
 

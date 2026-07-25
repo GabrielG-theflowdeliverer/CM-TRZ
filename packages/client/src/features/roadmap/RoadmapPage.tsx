@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ADKAR_ELEMENTS, ADKAR_LABELS, MAX_RELEASES } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { Roadmap } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useGroups } from '../impact/useGroups';
 import { useRoadmap } from './useRoadmap';
 import { DateInput, TextField } from '../../ui/controls';

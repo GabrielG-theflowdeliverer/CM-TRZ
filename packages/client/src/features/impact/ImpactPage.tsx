@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ADKAR_ELEMENTS, ADKAR_SHORT } from '@cmt/domain';
 import type { GroupDto } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useGroupMutations, useGroups } from './useGroups';
 import { BarrierBadge, HeatCell, adkarCellColor, impactCellColor } from '../../ui/scores';
 import { NumberField } from '../../ui/controls';

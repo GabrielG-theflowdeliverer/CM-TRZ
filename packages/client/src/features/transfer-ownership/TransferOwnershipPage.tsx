@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { TRANSFER_RESPONSIBILITIES, transferProgress, type TransferItem } from '@cmt/domain';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { TextField } from '../../ui/controls';
 import { useTransferItems, useTransferMutations } from './useTransferOwnership';
 

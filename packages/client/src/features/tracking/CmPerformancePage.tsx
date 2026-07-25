@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ACTIVITY_STATUSES, CM_PERF_STATUSES } from '@cmt/domain';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { DateInput, Select, TextArea, TextField } from '../../ui/controls';
 import { useCmPerfReport, useCmPerfReportMutations, useCmPerfReports } from './useCmPerfReports';
 

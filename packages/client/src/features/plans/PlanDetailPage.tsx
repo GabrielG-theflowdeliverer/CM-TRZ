@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PLAN_TYPES } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { PlanDto } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useGroups } from '../impact/useGroups';
 import { usePlans } from './usePlans';
 import { useRoles } from '../roles/useRoles';

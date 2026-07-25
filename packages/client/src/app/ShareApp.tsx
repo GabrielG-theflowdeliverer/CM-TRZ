@@ -2,7 +2,8 @@ import { Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-rou
 import { useQuery } from '@tanstack/react-query';
 import type { ProjectDashboardDto } from '../features/dashboard/ProjectDashboardView';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
-import { NAV_SECTIONS, useProject } from './ProjectLayout';
+import { NAV_SECTIONS } from './navSections';
+import { useProject } from './useProject';
 import { PROJECT_PAGE_ROUTES } from './projectRoutes';
 
 /**

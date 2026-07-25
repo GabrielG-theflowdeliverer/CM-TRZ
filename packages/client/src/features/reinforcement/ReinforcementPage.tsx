@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ACTIVITY_STATUSES, type ReinforcementAction } from '@cmt/domain';
 import type { GroupDto } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useGroups } from '../impact/useGroups';
 import { useOutcomes, type ObjectiveDto } from '../outcomes/useOutcomes';
 import { BarrierBadge } from '../../ui/scores';
