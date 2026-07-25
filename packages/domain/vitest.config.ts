@@ -10,9 +10,11 @@ export default defineConfig({
       // string is noise; index is a re-export barrel.
       exclude: ['src/content/**', 'src/index.ts', '**/*.test.ts'],
       reporter: ['text-summary'],
-      // calc logic is ~fully covered (branch 89); lines/funcs are held down by
-      // entity zod-schema/vocab data. Floors just below current; raise as covered.
-      thresholds: { statements: 68, branches: 85, functions: 75, lines: 68 },
+      // calc/ — the Excel-parity maths — is now fully covered: 100% statements
+      // and functions, 94 branch. The package-wide numbers are held down by
+      // entity zod-schema/vocab declarations, which the server integration
+      // tests exercise instead. Floors just below current; raise as covered.
+      thresholds: { statements: 71, branches: 90, functions: 80, lines: 71 },
     },
   },
 });
