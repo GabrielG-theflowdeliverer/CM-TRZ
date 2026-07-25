@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { activityCreateSchema, activityUpdateSchema } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
-import { parseBody } from '../../infra/http.js';
+import { parseBody, projectIdParam } from '../../infra/http.js';
 import * as service from './activities.service.js';
 
 /** Nested under /api/projects/:projectId/activities */
@@ -11,7 +11,7 @@ export function createProjectActivitiesRouter(db: Db): Router {
   router.get('/', (req, res) => {
     const q = req.query as Record<string, string | undefined>;
     res.json(
-      service.listActivities(db, (req.params as Record<string, string>).projectId!, {
+      service.listActivities(db, projectIdParam(req), {
         element: q.element,
         groupId: q.groupId,
         planId: q.planId,
@@ -25,7 +25,7 @@ export function createProjectActivitiesRouter(db: Db): Router {
 
   router.post('/', (req, res) => {
     const input = parseBody(activityCreateSchema, req.body);
-    res.status(201).json(service.createActivity(db, (req.params as Record<string, string>).projectId!, input));
+    res.status(201).json(service.createActivity(db, projectIdParam(req), input));
   });
 
   return router;

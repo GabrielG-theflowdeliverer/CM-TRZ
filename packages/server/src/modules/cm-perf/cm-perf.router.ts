@@ -15,7 +15,7 @@ export function createProjectCmPerfRouter(db: Db): Router {
 
   router.post('/', (req, res) => {
     const input = parseBody(cmPerfReportCreateSchema, req.body);
-    res.status(201).json(service.createReport(db, (req.params as Record<string, string>).projectId!, input));
+    res.status(201).json(service.createReport(db, projectIdParam(req), input));
   });
 
   return router;

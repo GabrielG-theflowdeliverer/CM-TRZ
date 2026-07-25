@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { monthOf, monthRange, shiftMonth } from '@cmt/domain';
 import { today, type Db } from '../../infra/db.js';
-import { HttpError } from '../../infra/http.js';
+import { HttpError, projectIdParam } from '../../infra/http.js';
 import * as service from './dashboard.service.js';
 
 const MONTH_RE = /^\d{4}-\d{2}$/;
@@ -33,7 +33,7 @@ export function createDashboardRouter(db: Db): Router {
 export function createProjectDashboardRouter(db: Db): Router {
   const router = Router({ mergeParams: true });
   router.get('/', (req, res) => {
-    res.json(service.getProjectDashboard(db, (req.params as Record<string, string>).projectId!));
+    res.json(service.getProjectDashboard(db, projectIdParam(req)));
   });
   return router;
 }
