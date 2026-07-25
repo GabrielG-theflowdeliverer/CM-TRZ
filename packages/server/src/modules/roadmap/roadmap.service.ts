@@ -3,35 +3,24 @@ import type { Db } from '../../infra/db.js';
 import { HttpError } from '../../infra/http.js';
 import { getProject } from '../projects/projects.service.js';
 import { syncRoadmapPctSchedule } from '../assessments/assessments.service.js';
+import * as repo from './roadmap.repo.js';
 
-interface RoadmapRow {
-  project_id: string;
-  mode: string;
-  kickoff_date: string | null;
-  golive_date: string | null;
-  outcomes_date: string | null;
-}
+/** A project with no roadmap row yet reads as this — see getRoadmap. */
+const DEFAULT_ROADMAP: Omit<repo.RoadmapRow, 'project_id'> = {
+  mode: 'sequential',
+  kickoff_date: null,
+  golive_date: null,
+  outcomes_date: null,
+};
 
 export function getRoadmap(db: Db, projectId: string): Roadmap {
   getProject(db, projectId);
   // A read must never write: synthesize the default roadmap in memory when no
   // row exists yet (the row is materialised on first edit, see ensureRoadmapRow).
   // This keeps GET side-effect-free, which the read-only share surface relies on.
-  const row = (db.prepare('SELECT * FROM roadmaps WHERE project_id = ?').get(projectId) as RoadmapRow | undefined) ?? {
-    project_id: projectId,
-    mode: 'sequential',
-    kickoff_date: null,
-    golive_date: null,
-    outcomes_date: null,
-  };
-  const releases = db
-    .prepare('SELECT release_no, date, name FROM roadmap_releases WHERE project_id = ? ORDER BY release_no')
-    .all(projectId) as Array<{ release_no: number; date: string | null; name: string | null }>;
-  const milestones = db
-    .prepare(
-      'SELECT release_no, element, date, group_id FROM roadmap_adkar_milestones WHERE project_id = ? ORDER BY release_no',
-    )
-    .all(projectId) as Array<{ release_no: number; element: string; date: string | null; group_id: string }>;
+  const row = repo.getRoadmapRow(db, projectId) ?? DEFAULT_ROADMAP;
+  const releases = repo.listReleaseRows(db, projectId);
+  const milestones = repo.listMilestoneRows(db, projectId);
   return {
     projectId,
     mode: row.mode as RoadmapMode,
@@ -62,61 +51,27 @@ export function updateRoadmap(
 ): Roadmap {
   const current = getRoadmap(db, projectId);
   for (const m of input.adkarMilestones ?? []) {
-    if (m.groupId) {
-      const group = db.prepare('SELECT project_id FROM impacted_groups WHERE id = ?').get(m.groupId) as
-        | { project_id: string }
-        | undefined;
-      if (!group || group.project_id !== projectId) {
-        throw new HttpError(400, 'groupId does not belong to this project');
-      }
+    if (m.groupId && repo.getGroupProjectId(db, m.groupId) !== projectId) {
+      throw new HttpError(400, 'groupId does not belong to this project');
     }
   }
+  // Only real releases and real ADKAR elements are persisted; anything else is ignored.
+  const releases = (input.releases ?? []).filter((r) => r.releaseNo >= 1 && r.releaseNo <= MAX_RELEASES);
+  const milestones = (input.adkarMilestones ?? []).filter((m) =>
+    (ADKAR_ELEMENTS as readonly string[]).includes(m.element),
+  );
   db.transaction(() => {
-    // Materialise the row on first edit so the UPDATE below has something to hit
+    // Materialise the row on first edit so the update below has something to hit
     // (getRoadmap no longer creates it on read).
-    db.prepare(`INSERT INTO roadmaps (project_id, mode) VALUES (?, 'sequential') ON CONFLICT(project_id) DO NOTHING`).run(
-      projectId,
-    );
-    db.prepare(
-      `UPDATE roadmaps SET mode = ?, kickoff_date = ?, golive_date = ?, outcomes_date = ? WHERE project_id = ?`,
-    ).run(
-      input.mode ?? current.mode,
-      input.kickoffDate !== undefined ? input.kickoffDate : current.kickoffDate,
-      input.goliveDate !== undefined ? input.goliveDate : current.goliveDate,
-      input.outcomesDate !== undefined ? input.outcomesDate : current.outcomesDate,
-      projectId,
-    );
-    if (input.releases) {
-      const stmt = db.prepare(
-        `INSERT INTO roadmap_releases (project_id, release_no, date, name) VALUES (?, ?, ?, ?)
-         ON CONFLICT(project_id, release_no) DO UPDATE SET
-           date = CASE WHEN ? THEN excluded.date ELSE roadmap_releases.date END,
-           name = CASE WHEN ? THEN excluded.name ELSE roadmap_releases.name END`,
-      );
-      for (const r of input.releases) {
-        if (r.releaseNo >= 1 && r.releaseNo <= MAX_RELEASES) {
-          stmt.run(
-            projectId,
-            r.releaseNo,
-            r.date ?? null,
-            r.name ?? null,
-            r.date !== undefined ? 1 : 0,
-            r.name !== undefined ? 1 : 0,
-          );
-        }
-      }
-    }
-    if (input.adkarMilestones) {
-      const stmt = db.prepare(
-        `INSERT INTO roadmap_adkar_milestones (project_id, release_no, element, group_id, date) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(project_id, release_no, element, group_id) DO UPDATE SET date = excluded.date`,
-      );
-      for (const m of input.adkarMilestones) {
-        if ((ADKAR_ELEMENTS as readonly string[]).includes(m.element)) {
-          stmt.run(projectId, m.releaseNo, m.element, m.groupId ?? '', m.date);
-        }
-      }
-    }
+    repo.ensureRoadmapRow(db, projectId);
+    repo.updateRoadmapRow(db, projectId, {
+      mode: input.mode ?? current.mode,
+      kickoffDate: input.kickoffDate !== undefined ? input.kickoffDate : current.kickoffDate,
+      goliveDate: input.goliveDate !== undefined ? input.goliveDate : current.goliveDate,
+      outcomesDate: input.outcomesDate !== undefined ? input.outcomesDate : current.outcomesDate,
+    });
+    repo.upsertReleases(db, projectId, releases);
+    repo.upsertMilestones(db, projectId, milestones);
   })();
   const updated = getRoadmap(db, projectId);
   syncRoadmapPctSchedule(db, projectId, {
