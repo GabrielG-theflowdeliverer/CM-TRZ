@@ -105,3 +105,11 @@ export function setRoleGroups(db: Db, roleId: string, groupIds: string[]): void 
   });
   run();
 }
+
+/**
+ * ADKAR runs for a role are keyed polymorphically (subject_kind/subject_id), so
+ * there is no FK to cascade from — they are cleaned up when the role is deleted.
+ */
+export function deleteRoleAssessments(db: Db, roleId: string): void {
+  db.prepare(`DELETE FROM assessments WHERE subject_kind = 'role' AND subject_id = ?`).run(roleId);
+}

@@ -24,12 +24,9 @@ export type ActivityInput = {
 
 /** Every linked id must belong to the activity's project. */
 function assertLinksBelong(db: Db, projectId: string, input: ActivityInput): void {
-  const check = (table: string, ids: string[] | undefined, label: string) => {
+  const check = (table: repo.LinkTable, ids: string[] | undefined, label: string) => {
     for (const id of ids ?? []) {
-      const row = db.prepare(`SELECT project_id FROM ${table} WHERE id = ?`).get(id) as
-        | { project_id: string }
-        | undefined;
-      if (!row || row.project_id !== projectId) {
+      if (repo.getLinkOwnerProjectId(db, table, id) !== projectId) {
         throw new HttpError(400, `${label} ${id} does not belong to this project`);
       }
     }

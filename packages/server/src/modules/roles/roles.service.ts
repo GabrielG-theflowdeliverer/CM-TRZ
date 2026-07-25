@@ -85,7 +85,8 @@ export function updateRole(
 export function deleteRole(db: Db, id: string): void {
   const row = repo.getRoleRow(db, id) ?? notFound('Role');
   db.transaction(() => {
-    db.prepare(`DELETE FROM assessments WHERE subject_kind = 'role' AND subject_id = ?`).run(row.id);
+    // ADKAR runs don't cascade from an FK — see the repo function.
+    repo.deleteRoleAssessments(db, row.id);
     repo.deleteRole(db, id);
   })();
 }

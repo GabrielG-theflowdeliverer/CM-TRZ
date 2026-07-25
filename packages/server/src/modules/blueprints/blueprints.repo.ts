@@ -60,6 +60,54 @@ export function deleteBlueprint(db: Db, id: string): boolean {
   return db.prepare('DELETE FROM blueprints WHERE id = ?').run(id).changes > 0;
 }
 
+/**
+ * Display name of the group a group-scoped blueprint targets. The row belongs
+ * to the impact module; only its label is read here.
+ */
+export function getGroupName(db: Db, groupId: string): string | null {
+  const row = db.prepare('SELECT name FROM impacted_groups WHERE id = ?').get(groupId) as { name: string } | undefined;
+  return row?.name ?? null;
+}
+
+/** Owning project of a group, for the "this group is in this project" check. */
+export function getGroupProjectId(db: Db, groupId: string): string | null {
+  const row = db.prepare('SELECT project_id FROM impacted_groups WHERE id = ?').get(groupId) as
+    | { project_id: string }
+    | undefined;
+  return row?.project_id ?? null;
+}
+
+export interface SnapshotRow {
+  id: string;
+  blueprint_id: string;
+  label: string;
+  taken_at: string;
+  payload: string;
+}
+
+export function listSnapshotRows(db: Db, blueprintId: string): SnapshotRow[] {
+  return db
+    .prepare('SELECT * FROM blueprint_snapshots WHERE blueprint_id = ? ORDER BY taken_at DESC')
+    .all(blueprintId) as SnapshotRow[];
+}
+
+export function insertSnapshot(
+  db: Db,
+  s: { id: string; blueprintId: string; label: string; takenAt: string; payload: string },
+): void {
+  db.prepare('INSERT INTO blueprint_snapshots (id, blueprint_id, label, taken_at, payload) VALUES (?, ?, ?, ?, ?)').run(
+    s.id,
+    s.blueprintId,
+    s.label,
+    s.takenAt,
+    s.payload,
+  );
+}
+
+export function deleteSnapshot(db: Db, snapshotId: string): boolean {
+  return db.prepare('DELETE FROM blueprint_snapshots WHERE id = ?').run(snapshotId).changes > 0;
+}
+
 export function getElements(db: Db, blueprintId: string): BlueprintElement[] {
   const rows = db
     .prepare('SELECT element, milestone_override_date, gauge_gap FROM blueprint_elements WHERE blueprint_id = ?')

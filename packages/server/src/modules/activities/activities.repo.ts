@@ -204,3 +204,17 @@ export function updateActivity(
 export function deleteActivity(db: Db, id: string): boolean {
   return db.prepare('DELETE FROM activities WHERE id = ?').run(id).changes > 0;
 }
+
+/** Tables an activity can link to; each row carries the project it belongs to. */
+export type LinkTable = 'impacted_groups' | 'plans' | 'blueprints' | 'roles';
+
+/**
+ * Owning project of a link target, for the "belongs to this project" check.
+ * `table` is a closed union, so the interpolation cannot carry caller input.
+ */
+export function getLinkOwnerProjectId(db: Db, table: LinkTable, id: string): string | null {
+  const row = db.prepare(`SELECT project_id FROM ${table} WHERE id = ?`).get(id) as
+    | { project_id: string }
+    | undefined;
+  return row?.project_id ?? null;
+}

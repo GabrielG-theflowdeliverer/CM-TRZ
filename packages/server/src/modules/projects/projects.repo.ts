@@ -88,3 +88,45 @@ export function deleteProject(db: Db, id: string): boolean {
 export function touchProject(db: Db, id: string, updatedAt: string): void {
   db.prepare('UPDATE projects SET updated_at = ? WHERE id = ?').run(updatedAt, id);
 }
+
+/**
+ * Rows a brand-new project starts life with: the four core CM plans, its
+ * roadmap row and the overall blueprint. These tables belong to the plans,
+ * roadmap and blueprints modules; the inserts live here rather than reaching
+ * through those modules' services, which would make projects.service and its
+ * three siblings mutually importing.
+ */
+export function insertCorePlan(
+  db: Db,
+  p: { id: string; projectId: string; name: string; planType: string | null; position: number },
+): void {
+  db.prepare(`INSERT INTO plans (id, project_id, kind, name, plan_type, position) VALUES (?, ?, 'core', ?, ?, ?)`).run(
+    p.id,
+    p.projectId,
+    p.name,
+    p.planType,
+    p.position,
+  );
+}
+
+export function insertRoadmapRow(db: Db, projectId: string): void {
+  db.prepare(`INSERT INTO roadmaps (project_id, mode) VALUES (?, 'sequential')`).run(projectId);
+}
+
+export function insertOverallBlueprint(
+  db: Db,
+  b: { id: string; projectId: string; createdAt: string },
+): void {
+  db.prepare(
+    `INSERT INTO blueprints (id, project_id, scope_kind, group_id, name, created_at, updated_at)
+     VALUES (?, ?, 'overall', NULL, 'Overall', ?, ?)`,
+  ).run(b.id, b.projectId, b.createdAt, b.createdAt);
+}
+
+/** Plans by name, for the demo seeder's "attach activities to the comms plan" step. */
+export function listPlanNames(db: Db, projectId: string): Array<{ id: string; name: string }> {
+  return db.prepare('SELECT id, name FROM plans WHERE project_id = ?').all(projectId) as Array<{
+    id: string;
+    name: string;
+  }>;
+}
