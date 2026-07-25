@@ -7,6 +7,7 @@ import * as roadmap from '../roadmap/roadmap.service.js';
 import * as assessments from '../assessments/assessments.service.js';
 import * as blueprints from '../blueprints/blueprints.service.js';
 import * as activities from '../activities/activities.service.js';
+import * as plans from '../plans/plans.service.js';
 import * as cmPerf from '../cm-perf/cm-perf.service.js';
 import * as orgGroups from '../org-groups/org-groups.service.js';
 import * as outcomes from '../outcomes/outcomes.service.js';
@@ -97,9 +98,9 @@ export function generateDemoProject(db: Db): Project {
   blueprints.addActivity(db, overall.id, { element: 'awareness', name: 'Kickoff town hall', startDate: '2026-07-01', finishDate: '2026-07-10' });
   blueprints.addActivity(db, overall.id, { element: 'desire', name: 'WIIFM roadshow', startDate: '2026-07-15', finishDate: '2026-08-01' });
 
-  const plans = db.prepare('SELECT id, name FROM plans WHERE project_id = ?').all(pid) as Array<{ id: string; name: string }>;
-  const commsPlan = plans.find((p) => p.name === 'Communications Plan');
-  const trainingPlan = plans.find((p) => p.name === 'Training Plan');
+  const projectPlans = plans.listPlans(db, pid);
+  const commsPlan = projectPlans.find((p) => p.name === 'Communications Plan');
+  const trainingPlan = projectPlans.find((p) => p.name === 'Training Plan');
   activities.createActivity(db, pid, {
     name: 'Launch email + FAQ',
     adkarOutcomes: ['awareness', 'knowledge'],

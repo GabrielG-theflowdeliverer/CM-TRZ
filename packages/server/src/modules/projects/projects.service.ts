@@ -33,17 +33,10 @@ export function createProject(
 /** Every project starts with the four core CM plans, a roadmap row and an overall blueprint. */
 function seedProjectDefaults(db: Db, projectId: string): void {
   CORE_PLANS.forEach((plan, i) => {
-    db.prepare(
-      `INSERT INTO plans (id, project_id, kind, name, plan_type, position) VALUES (?, ?, 'core', ?, ?, ?)`,
-    ).run(newId(), projectId, plan.name, plan.planType, i);
+    repo.insertCorePlan(db, { id: newId(), projectId, name: plan.name, planType: plan.planType, position: i });
   });
-  db.prepare(`INSERT INTO roadmaps (project_id, mode) VALUES (?, 'sequential')`).run(projectId);
-  const blueprintId = newId();
-  const now = nowIso();
-  db.prepare(
-    `INSERT INTO blueprints (id, project_id, scope_kind, group_id, name, created_at, updated_at)
-     VALUES (?, ?, 'overall', NULL, 'Overall', ?, ?)`,
-  ).run(blueprintId, projectId, now, now);
+  repo.insertRoadmapRow(db, projectId);
+  repo.insertOverallBlueprint(db, { id: newId(), projectId, createdAt: nowIso() });
 }
 
 export function updateProject(

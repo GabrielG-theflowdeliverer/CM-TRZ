@@ -26,6 +26,7 @@ import * as cmPerf from '../cm-perf/cm-perf.service.js';
 import * as activities from '../activities/activities.service.js';
 import * as orgGroups from '../org-groups/org-groups.service.js';
 import * as outcomes from '../outcomes/outcomes.service.js';
+import * as repo from './dashboard.repo.js';
 
 /** One impacted group's ADKAR readiness vs adoption realization, for the pooled correlation view. */
 export interface CorrelationPointDto {
@@ -232,11 +233,9 @@ export function getDashboard(db: Db): DashboardPayload {
     }
 
     // Unified activities: each counts once no matter how many plans/blueprints link it.
-    const activityStatuses = (
-      db
-        .prepare(`SELECT status, finish_date FROM activities WHERE project_id = ?`)
-        .all(project.id) as Array<{ status: string | null; finish_date: string | null }>
-    ).map((r) => ({ status: r.status as ActivityStatus | null, finishDate: r.finish_date }));
+    const activityStatuses = repo
+      .listActivityStatusRows(db, project.id)
+      .map((r) => ({ status: r.status as ActivityStatus | null, finishDate: r.finish_date }));
 
     const latestCmPerfStatus = cmPerf.latestReportStatus(db, project.id);
 
@@ -258,11 +257,7 @@ export function getDashboard(db: Db): DashboardPayload {
     for (const r of rm.releases) {
       if (r.date) upcomingDates.push({ date: r.date, label: `Release ${r.releaseNo}` });
     }
-    const checks = db
-      .prepare(
-        `SELECT scheduled_date, description, completed_date FROM tracking_entries WHERE project_id = ? AND scheduled_date IS NOT NULL`,
-      )
-      .all(project.id) as Array<{ scheduled_date: string; description: string | null; completed_date: string | null }>;
+    const checks = repo.listScheduledCheckRows(db, project.id);
     const incompleteCheckDates: string[] = [];
     for (const c of checks) {
       upcomingDates.push({ date: c.scheduled_date, label: c.description ?? 'Status check' });

@@ -110,10 +110,9 @@ export function updateGroup(
 export function deleteGroup(db: Db, id: string): void {
   const row = repo.getGroupRow(db, id) ?? notFound('Impacted group');
   db.transaction(() => {
-    // ADKAR/risk runs are keyed polymorphically; group milestone rows have no FK
-    // (group_id '' means overall) — clean both up alongside the group.
-    db.prepare(`DELETE FROM assessments WHERE subject_kind = 'group' AND subject_id = ?`).run(row.id);
-    db.prepare(`DELETE FROM roadmap_adkar_milestones WHERE group_id = ?`).run(row.id);
+    // Neither of these cascades from an FK — see the repo functions.
+    repo.deleteGroupAssessments(db, row.id);
+    repo.deleteGroupMilestones(db, row.id);
     repo.deleteGroup(db, id);
   })();
 }

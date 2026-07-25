@@ -29,10 +29,7 @@ function assemble(db: Db, row: repo.BlueprintRow): BlueprintWithComputed {
       milestones[el.element] = { effectiveDate: fromGroup ?? overallDefaults[el.element] ?? null, fromRoadmap: true };
     }
   }
-  const groupName = row.group_id
-    ? ((db.prepare('SELECT name FROM impacted_groups WHERE id = ?').get(row.group_id) as { name: string } | undefined)
-        ?.name ?? null)
-    : null;
+  const groupName = row.group_id ? repo.getGroupName(db, row.group_id) : null;
   return {
     id: row.id,
     projectId: row.project_id,
@@ -67,10 +64,9 @@ export function createBlueprint(
   getProject(db, projectId);
   if (input.scopeKind === 'group') {
     if (!input.groupId) throw new HttpError(400, 'groupId is required for a group-scoped blueprint');
-    const group = db
-      .prepare('SELECT project_id FROM impacted_groups WHERE id = ?')
-      .get(input.groupId) as { project_id: string } | undefined;
-    if (!group || group.project_id !== projectId) throw new HttpError(400, 'groupId does not belong to this project');
+    if (repo.getGroupProjectId(db, input.groupId) !== projectId) {
+      throw new HttpError(400, 'groupId does not belong to this project');
+    }
   }
   const id = newId();
   repo.insertBlueprint(db, {
@@ -131,10 +127,7 @@ export function addActivity(
 
 export function listSnapshots(db: Db, blueprintId: string): BlueprintSnapshot[] {
   const row = repo.getBlueprintRow(db, blueprintId) ?? notFound('Blueprint');
-  const rows = db
-    .prepare('SELECT * FROM blueprint_snapshots WHERE blueprint_id = ? ORDER BY taken_at DESC')
-    .all(row.id) as Array<{ id: string; blueprint_id: string; label: string; taken_at: string; payload: string }>;
-  return rows.map((r) => ({
+  return repo.listSnapshotRows(db, row.id).map((r) => ({
     id: r.id,
     blueprintId: r.blueprint_id,
     label: r.label,
@@ -155,13 +148,10 @@ export function takeSnapshot(db: Db, blueprintId: string, label: string): Bluepr
     activities: blueprint.activities,
     milestones: blueprint.computed.milestones,
   });
-  db.prepare(
-    'INSERT INTO blueprint_snapshots (id, blueprint_id, label, taken_at, payload) VALUES (?, ?, ?, ?, ?)',
-  ).run(id, blueprintId, label, takenAt, payload);
+  repo.insertSnapshot(db, { id, blueprintId, label, takenAt, payload });
   return { id, blueprintId, label, takenAt, payload: JSON.parse(payload) };
 }
 
 export function deleteSnapshot(db: Db, snapshotId: string): void {
-  const changes = db.prepare('DELETE FROM blueprint_snapshots WHERE id = ?').run(snapshotId).changes;
-  if (changes === 0) notFound('Snapshot');
+  if (!repo.deleteSnapshot(db, snapshotId)) notFound('Snapshot');
 }

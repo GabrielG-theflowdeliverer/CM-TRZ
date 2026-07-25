@@ -135,3 +135,16 @@ export function upsertAspects(
   });
   run();
 }
+
+/**
+ * Rows that reference a group without an FK to cascade from: ADKAR/risk runs
+ * are keyed polymorphically (subject_kind/subject_id) and milestone rows use
+ * group_id '' for "overall". Both are cleaned up when a group is deleted.
+ */
+export function deleteGroupAssessments(db: Db, groupId: string): void {
+  db.prepare(`DELETE FROM assessments WHERE subject_kind = 'group' AND subject_id = ?`).run(groupId);
+}
+
+export function deleteGroupMilestones(db: Db, groupId: string): void {
+  db.prepare('DELETE FROM roadmap_adkar_milestones WHERE group_id = ?').run(groupId);
+}
