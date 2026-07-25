@@ -8,7 +8,7 @@ import {
   type ActivityGroupBy,
 } from '@cmt/domain';
 import type { Activity, BlueprintDto, PlanDto, RoleDto } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useGroups } from '../impact/useGroups';
 import { usePlans } from '../plans/usePlans';
 import { useBlueprints } from '../blueprints/useBlueprints';

@@ -20,7 +20,7 @@ import {
 } from 'recharts';
 import { api } from '../../lib/api';
 import type { AssessmentDto, GroupDto } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useGroups } from '../impact/useGroups';
 import { useAssessments, useInvalidateAssessments } from './useAssessments';
 import { BandChip, BarrierBadge, RiskBadge } from '../../ui/scores';

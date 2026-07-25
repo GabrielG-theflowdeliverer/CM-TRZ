@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { ASSESSMENT_STATUSES, ASSESSMENT_TYPE_LABELS } from '@cmt/domain';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useAssessment, useSaveResponses, useUpdateAssessment } from './useAssessments';
 import { DateInput, Select, TextArea, TextField } from '../../ui/controls';
 import { queryGate } from '../../ui/QueryGate';

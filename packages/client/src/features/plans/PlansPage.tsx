@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EXTEND_PLAN_OPTIONS } from '@cmt/domain';
 import type { PlanDto } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { usePlans, usePlanMutations } from './usePlans';
 
 function ProgressBar(props: { percent: number | null }) {

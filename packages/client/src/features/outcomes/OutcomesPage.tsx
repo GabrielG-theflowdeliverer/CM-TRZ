@@ -8,7 +8,7 @@ import {
   type AdoptionMeasure,
 } from '@cmt/domain';
 import type { GroupDto } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useGroups } from '../impact/useGroups';
 import { useOutcomeMutations, useOutcomes, type MetricDto, type ObjectiveDto } from './useOutcomes';
 import { CorrelationPanel } from './CorrelationPanel';

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { PM_APPROACHES, PROJECT_STATUSES, PROJECT_TYPES } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { Project } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { Select, TextField } from '../../ui/controls';
 import { SharePanel } from '../share/SharePanel';
 

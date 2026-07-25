@@ -10,7 +10,7 @@ import {
 } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { TrackingEntry } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { DateInput, Select, TextArea } from '../../ui/controls';
 import { useActivities } from '../activities/useActivities';
 import { useAssessments } from '../assessments/useAssessments';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ADKAR_ELEMENTS, ADKAR_LABELS, ADKAR_TACTICS, GAUGE_GAPS } from '@cmt/domain';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useBlueprint, useBlueprintMutations, useSnapshots } from './useBlueprints';
 import { useBlueprints } from './useBlueprints';
 import { useRoles } from '../roles/useRoles';

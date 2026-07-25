@@ -10,7 +10,7 @@ import {
 } from '@cmt/domain';
 import { api } from '../../lib/api';
 import type { AssessmentDto, GroupDto, ResistanceItem } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { useGroupMutations } from './useGroups';
 import { useRoles } from '../roles/useRoles';
 import { useRoadmap } from '../roadmap/useRoadmap';

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { Project } from '../../lib/types';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { ProjectDashboardView, type ProjectDashboardDto } from './ProjectDashboardView';
 
 export type { ProjectDashboardDto } from './ProjectDashboardView';

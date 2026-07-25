@@ -1,5 +1,5 @@
 import { RESOURCES_PROMPTS } from '@cmt/domain';
-import { useProject } from '../../app/ProjectLayout';
+import { useProject } from '../../app/useProject';
 import { TextArea } from '../../ui/controls';
 import { useDoc } from './useDoc';
 import { DocHeader } from './DocHeader';
