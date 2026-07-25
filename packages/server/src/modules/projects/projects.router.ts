@@ -3,7 +3,7 @@ import { projectCreateSchema, projectUpdateSchema } from '@cmt/domain';
 import type { Db } from '../../infra/db.js';
 import { parseBody } from '../../infra/http.js';
 import * as service from './projects.service.js';
-import { duplicateProject } from '../transfer/transfer.service.js';
+import { duplicateProject } from '../transfer/project-duplicate.service.js';
 import { generateDemoProject } from './demo.service.js';
 
 export function createProjectsRouter(db: Db): Router {
