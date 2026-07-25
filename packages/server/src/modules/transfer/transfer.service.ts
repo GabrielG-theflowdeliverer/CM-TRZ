@@ -1,43 +1,19 @@
 import { z } from 'zod';
 import type { Project } from '@cmt/domain';
 import { newId, nowIso, type Db } from '../../infra/db.js';
-import { HttpError, notFound } from '../../infra/http.js';
+import { notFound } from '../../infra/http.js';
 import { getProject } from '../projects/projects.service.js';
+import { insertRow, readExportRowSets, setWatchGroupIds, type ExportRowSets } from './transfer.repo.js';
 
 /**
- * Full-fidelity project export. The payload carries raw table rows keyed by
- * their original ids; import re-keys everything and remaps references.
+ * Full-fidelity project export: the repo's raw row sets wrapped in a versioned
+ * file envelope. Rows are keyed by their original ids; import re-keys
+ * everything and remaps references.
  */
-export interface ProjectExport {
+export interface ProjectExport extends ExportRowSets {
   format: 'change-management-tool/project';
   version: 2;
   exportedAt: string;
-  project: Record<string, unknown>;
-  assessments: Record<string, unknown>[];
-  assessmentResponses: Record<string, unknown>[];
-  groups: Record<string, unknown>[];
-  groupAspects: Record<string, unknown>[];
-  roles: Record<string, unknown>[];
-  roleGroups: Record<string, unknown>[];
-  blueprints: Record<string, unknown>[];
-  blueprintElements: Record<string, unknown>[];
-  blueprintSnapshots: Record<string, unknown>[];
-  plans: Record<string, unknown>[];
-  activities: Record<string, unknown>[];
-  activityAdkar: Record<string, unknown>[];
-  activityGroups: Record<string, unknown>[];
-  activityPlans: Record<string, unknown>[];
-  activityBlueprints: Record<string, unknown>[];
-  activityRoles: Record<string, unknown>[];
-  roadmap: Record<string, unknown> | null;
-  roadmapReleases: Record<string, unknown>[];
-  roadmapAdkarMilestones: Record<string, unknown>[];
-  trackingEntries: Record<string, unknown>[];
-  cmPerfReports: Record<string, unknown>[];
-  cmPerfItems: Record<string, unknown>[];
-  adaptActions: Record<string, unknown>[];
-  projectDocs: Record<string, unknown>[];
-  resistanceItems: Record<string, unknown>[];
 }
 
 /** Version 1 exports carried the pre-unification activity tables and free-form CM perf entries. */
@@ -156,107 +132,18 @@ function upgradeV1(v1: ProjectExportV1): ProjectExport {
   };
 }
 
-function rows(db: Db, sql: string, projectId: string): Record<string, unknown>[] {
-  return db.prepare(sql).all(projectId) as Record<string, unknown>[];
-}
-
 export function exportProject(db: Db, projectId: string): ProjectExport {
   getProject(db, projectId);
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as Record<string, unknown>;
+  const rowSets = readExportRowSets(db, projectId);
   // Never carry the live share token in an export file — it's an access
   // credential, and its UNIQUE index would collide on import/duplicate.
-  delete project.share_token;
+  delete rowSets.project.share_token;
   return {
     format: 'change-management-tool/project',
     version: 2,
     exportedAt: nowIso(),
-    project,
-    assessments: rows(db, 'SELECT * FROM assessments WHERE project_id = ?', projectId),
-    assessmentResponses: rows(
-      db,
-      `SELECT ar.* FROM assessment_responses ar JOIN assessments a ON a.id = ar.assessment_id WHERE a.project_id = ?`,
-      projectId,
-    ),
-    groups: rows(db, 'SELECT * FROM impacted_groups WHERE project_id = ?', projectId),
-    groupAspects: rows(
-      db,
-      `SELECT ga.* FROM group_aspects ga JOIN impacted_groups g ON g.id = ga.group_id WHERE g.project_id = ?`,
-      projectId,
-    ),
-    roles: rows(db, 'SELECT * FROM roles WHERE project_id = ?', projectId),
-    roleGroups: rows(
-      db,
-      `SELECT rg.* FROM role_groups rg JOIN roles r ON r.id = rg.role_id WHERE r.project_id = ?`,
-      projectId,
-    ),
-    blueprints: rows(db, 'SELECT * FROM blueprints WHERE project_id = ?', projectId),
-    blueprintElements: rows(
-      db,
-      `SELECT be.* FROM blueprint_elements be JOIN blueprints b ON b.id = be.blueprint_id WHERE b.project_id = ?`,
-      projectId,
-    ),
-    blueprintSnapshots: rows(
-      db,
-      `SELECT bs.* FROM blueprint_snapshots bs JOIN blueprints b ON b.id = bs.blueprint_id WHERE b.project_id = ?`,
-      projectId,
-    ),
-    plans: rows(db, 'SELECT * FROM plans WHERE project_id = ?', projectId),
-    activities: rows(db, 'SELECT * FROM activities WHERE project_id = ?', projectId),
-    activityAdkar: rows(
-      db,
-      `SELECT aa.* FROM activity_adkar aa JOIN activities a ON a.id = aa.activity_id WHERE a.project_id = ?`,
-      projectId,
-    ),
-    activityGroups: rows(
-      db,
-      `SELECT ag.* FROM activity_groups ag JOIN activities a ON a.id = ag.activity_id WHERE a.project_id = ?`,
-      projectId,
-    ),
-    activityPlans: rows(
-      db,
-      `SELECT ap.* FROM activity_plans ap JOIN activities a ON a.id = ap.activity_id WHERE a.project_id = ?`,
-      projectId,
-    ),
-    activityBlueprints: rows(
-      db,
-      `SELECT ab.* FROM activity_blueprints ab JOIN activities a ON a.id = ab.activity_id WHERE a.project_id = ?`,
-      projectId,
-    ),
-    activityRoles: rows(
-      db,
-      `SELECT ar2.* FROM activity_roles ar2 JOIN activities a ON a.id = ar2.activity_id WHERE a.project_id = ?`,
-      projectId,
-    ),
-    roadmap: (db.prepare('SELECT * FROM roadmaps WHERE project_id = ?').get(projectId) as Record<string, unknown>) ?? null,
-    roadmapReleases: rows(db, 'SELECT * FROM roadmap_releases WHERE project_id = ?', projectId),
-    roadmapAdkarMilestones: rows(db, 'SELECT * FROM roadmap_adkar_milestones WHERE project_id = ?', projectId),
-    trackingEntries: rows(db, 'SELECT * FROM tracking_entries WHERE project_id = ?', projectId),
-    cmPerfReports: rows(db, 'SELECT * FROM cm_perf_reports WHERE project_id = ?', projectId),
-    cmPerfItems: rows(
-      db,
-      `SELECT ci.* FROM cm_perf_items ci JOIN cm_perf_reports cr ON cr.id = ci.report_id WHERE cr.project_id = ?`,
-      projectId,
-    ),
-    adaptActions: rows(db, 'SELECT * FROM adapt_actions WHERE project_id = ?', projectId),
-    projectDocs: rows(db, 'SELECT * FROM project_docs WHERE project_id = ?', projectId),
-    resistanceItems: rows(db, 'SELECT * FROM resistance_items WHERE project_id = ?', projectId),
+    ...rowSets,
   };
-}
-
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-function insertRow(db: Db, table: string, row: Record<string, unknown>): void {
-  const keys = Object.keys(row);
-  // Column names come from the (untrusted) import payload and are interpolated
-  // into SQL, so every one must be a plain identifier — reject anything else as
-  // a bad payload (400) rather than letting it reach the query builder. Values
-  // stay parameterized; identifiers are also quoted defensively.
-  for (const k of keys) {
-    if (!IDENTIFIER.test(k)) throw new HttpError(400, `Invalid column name in import payload: ${k}`);
-  }
-  const cols = keys.map((k) => `"${k}"`).join(', ');
-  const sql = `INSERT INTO ${table} (${cols}) VALUES (${keys.map(() => '?').join(', ')})`;
-  db.prepare(sql).run(...keys.map((k) => row[k]));
 }
 
 const importRow = z.record(z.string(), z.unknown());
@@ -463,7 +350,7 @@ export function importProject(db: Db, rawPayload: ProjectImportPayload, options?
       }
     })();
     const newWatch = oldWatch.map((oldId) => remap(groupIds, oldId)).filter((x): x is string => !!x);
-    db.prepare('UPDATE projects SET watch_group_ids = ? WHERE id = ?').run(JSON.stringify(newWatch), newProjectId);
+    setWatchGroupIds(db, newProjectId, newWatch);
   })();
 
   return getProject(db, newProjectId);
