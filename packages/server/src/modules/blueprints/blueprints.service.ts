@@ -2,6 +2,7 @@ import { ADKAR_ELEMENTS, type Blueprint, type BlueprintSnapshot } from '@cmt/dom
 import { newId, nowIso, type Db } from '../../infra/db.js';
 import { HttpError, notFound } from '../../infra/http.js';
 import * as repo from './blueprints.repo.js';
+import { assertGroupInProject } from '../impact/impact.guards.js';
 import * as activities from '../activities/activities.service.js';
 import { groupAdkarMilestones, sequentialAdkarMilestones } from '../roadmap/roadmap.service.js';
 import { getProject } from '../projects/projects.service.js';
@@ -64,9 +65,7 @@ export function createBlueprint(
   getProject(db, projectId);
   if (input.scopeKind === 'group') {
     if (!input.groupId) throw new HttpError(400, 'groupId is required for a group-scoped blueprint');
-    if (repo.getGroupProjectId(db, input.groupId) !== projectId) {
-      throw new HttpError(400, 'groupId does not belong to this project');
-    }
+    assertGroupInProject(db, projectId, input.groupId);
   }
   const id = newId();
   repo.insertBlueprint(db, {

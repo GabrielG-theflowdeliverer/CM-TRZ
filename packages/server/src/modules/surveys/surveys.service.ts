@@ -15,8 +15,8 @@ import { HttpError, notFound } from '../../infra/http.js';
  */
 export const SURVEY_LINK_TTL_DAYS = 5;
 import * as repo from './surveys.repo.js';
-import * as assessmentsRepo from '../assessments/assessments.repo.js';
-import { getRoleRow } from '../roles/roles.repo.js';
+import { assertAssessmentInProject } from '../assessments/assessments.guards.js';
+import { getRoleInProject } from '../roles/roles.guards.js';
 
 function toRecipient(row: repo.RecipientRow): SurveyRecipient {
   return {
@@ -40,8 +40,7 @@ export function createCampaign(
   projectId: string,
   input: { assessmentId: string; roleIds: string[] },
 ): SurveyCampaign {
-  const assessment = assessmentsRepo.getAssessment(db, input.assessmentId);
-  if (!assessment || assessment.projectId !== projectId) notFound('Assessment');
+  assertAssessmentInProject(db, projectId, input.assessmentId);
 
   // One campaign per assessment: the roll-up aggregates every submission for
   // the assessment, and the UI surfaces a single campaign, so a second would
@@ -51,10 +50,7 @@ export function createCampaign(
   }
 
   const roles = [...new Set(input.roleIds)].map((roleId) => {
-    const role = getRoleRow(db, roleId);
-    if (!role || role.project_id !== projectId) {
-      throw new HttpError(400, `Role ${roleId} is not in this project`);
-    }
+    const role = getRoleInProject(db, projectId, roleId);
     if (!role.person_name) {
       throw new HttpError(400, `Role ${roleId} has no named person to survey`);
     }

@@ -9,7 +9,7 @@ import {
 import { newId, type Db } from '../../infra/db.js';
 import { HttpError, notFound } from '../../infra/http.js';
 import * as repo from './impact.repo.js';
-import { orgGroupExists } from '../org-groups/org-groups.repo.js';
+import { orgGroupExists } from '../org-groups/org-groups.service.js';
 import * as assessments from '../assessments/assessments.service.js';
 import { getProject } from '../projects/projects.service.js';
 

@@ -1,19 +1,13 @@
 import type { ReinforcementAction } from '@cmt/domain';
 import { newId, nowIso, type Db } from '../../infra/db.js';
-import { HttpError, notFound } from '../../infra/http.js';
+import { notFound } from '../../infra/http.js';
 import * as repo from './reinforcement.repo.js';
 import { getProject } from '../projects/projects.service.js';
-import { getGroupRow } from '../impact/impact.repo.js';
+import { assertGroupInProject } from '../impact/impact.guards.js';
 
 export function listActions(db: Db, projectId: string): ReinforcementAction[] {
   getProject(db, projectId); // 404 unknown project
   return repo.listActions(db, projectId);
-}
-
-function assertGroupInProject(db: Db, projectId: string, groupId: string | null | undefined): void {
-  if (groupId == null) return;
-  const group = getGroupRow(db, groupId);
-  if (!group || group.project_id !== projectId) throw new HttpError(400, 'groupId is not in this project');
 }
 
 export function createAction(
