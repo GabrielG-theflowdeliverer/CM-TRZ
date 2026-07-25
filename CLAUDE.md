@@ -46,6 +46,10 @@ These principles govern all work in this repo. When a change would violate one, 
 - **Routers** handle HTTP only: read params, validate the body with `parseBody(schema, …)` (`infra/http.ts`), call a service, shape the response. No SQL, no business rules.
 - **Services** own invariants, cross-entity coordination, and transactions.
 - **Repos** are SQL-only; no domain logic.
+- **Two of these are enforced by lint, not convention** (`eslint.config.js`, scoped to `server/src/modules`):
+  - `.prepare(` / `.exec(` outside a `*.repo.ts` is an error. `db.transaction()` is *not* restricted — services own transactions; only the statements move out. Need SQL in a service? Add a repo function and call it.
+  - importing another module's `*.repo.js` is an error — it skips the invariants that module's service enforces. Depend on its `*.service.ts`, or its `*.guards.ts` when you need one rule without the service's own collaborators (see `impact.guards.ts`).
+- A rule shared by several modules (e.g. "this group belongs to this project") has **one** home, in the module that owns the data. `impact.guards.assertGroupInProject` is the model.
 - `db: Db` is **passed explicitly** from the composition root (`app.ts`) down through every router factory → service → repo. There is no module-level/global connection. Keep it that way.
 - Errors: throw `HttpError`/`notFound()`; the central `errorHandler` maps them and never leaks stack traces.
 
