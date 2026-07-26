@@ -35,10 +35,14 @@ shadow copy of a person's results to clean up.
 - **Logs** (stdout, captured by `fly logs`) hold one line per request — method,
   path, status, duration and a random request id — plus browser failures posted
   to `/api/client-errors`. Paths can contain project and group **ids**, never
-  names or answers. Survey/share tokens are stripped to `[token]` before a
-  client report is sent (`client/src/lib/report.ts`), for the same reason
-  `Referrer-Policy` is `no-referrer`. Fly retains logs for a short window and
-  they are not part of a backup, so no erasure step is needed for them.
+  names or answers, and the query string is dropped rather than audited.
+  **Survey/share tokens are redacted to `[token]` on both sides** — server-side
+  in `loggablePath` (`server/src/infra/log.ts`) and client-side in `safeRoute`
+  (`client/src/lib/report.ts`) — for the same reason `Referrer-Policy` is
+  `no-referrer`: they are live access credentials, not identifiers.
+  Fly's log retention is short and logs are not part of a backup, so there is
+  no separate erasure step for them; anything needed long-term must be
+  exported deliberately.
 
 > **Why not Sentry or similar.** An error-tracking SaaS would send this data to
 > a third party, require widening `connect-src`, and — because such tools
