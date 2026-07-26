@@ -2,9 +2,27 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    /** Which call failed, and the id the server logged it under. */
+    public readonly context: { method: string; url: string; requestId: string } = {
+      method: '',
+      url: '',
+      requestId: '',
+    },
   ) {
     super(message);
   }
+}
+
+/**
+ * Correlation id, minted per request and sent as `X-Request-Id`. The server
+ * logs every request under it, so an id shown to the user leads straight to
+ * the server-side line — including for a request that timed out, which the
+ * server would otherwise have no record of at all.
+ */
+function newRequestId(): string {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /** Requests that hang longer than this are aborted so the UI can recover. */
@@ -40,8 +58,10 @@ export function setUnauthorizedHandler(fn: (() => void) | null): void {
 }
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
+  const requestId = newRequestId();
+  const ctx = () => ({ method, url, requestId });
   if (shareViewToken !== null) {
-    if (method !== 'GET') throw new ApiError(403, 'This link is view-only');
+    if (method !== 'GET') throw new ApiError(403, 'This link is view-only', ctx());
     url = `/api/share/${shareViewToken}${url.slice('/api'.length)}`;
   }
   const controller = new AbortController();
@@ -50,14 +70,19 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   try {
     res = await fetch(url, {
       method,
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      headers: {
+        'X-Request-Id': requestId,
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
   } catch (err) {
     // Abort (timeout) and network failures land here — normalise to ApiError.
-    if (controller.signal.aborted) throw new ApiError(0, `Request timed out after ${DEFAULT_TIMEOUT_MS / 1000}s`);
-    throw new ApiError(0, err instanceof Error ? err.message : 'Network error');
+    if (controller.signal.aborted) {
+      throw new ApiError(0, `Request timed out after ${DEFAULT_TIMEOUT_MS / 1000}s`, ctx());
+    }
+    throw new ApiError(0, err instanceof Error ? err.message : 'Network error', ctx());
   } finally {
     clearTimeout(timer);
   }
@@ -71,7 +96,7 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
       // keep statusText
     }
     if (res.status === 401 && shareViewToken === null) onUnauthorized?.();
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, ctx());
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

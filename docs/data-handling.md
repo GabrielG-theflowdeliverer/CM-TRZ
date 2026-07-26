@@ -32,6 +32,18 @@ shadow copy of a person's results to clean up.
 - Nothing is sent to any third party. The app makes no outbound calls; the CSP
   (`connect-src 'self'`) and `Referrer-Policy: no-referrer` keep tokens and data
   from leaking outward.
+- **Logs** (stdout, captured by `fly logs`) hold one line per request — method,
+  path, status, duration and a random request id — plus browser failures posted
+  to `/api/client-errors`. Paths can contain project and group **ids**, never
+  names or answers. Survey/share tokens are stripped to `[token]` before a
+  client report is sent (`client/src/lib/report.ts`), for the same reason
+  `Referrer-Policy` is `no-referrer`. Fly retains logs for a short window and
+  they are not part of a backup, so no erasure step is needed for them.
+
+> **Why not Sentry or similar.** An error-tracking SaaS would send this data to
+> a third party, require widening `connect-src`, and — because such tools
+> capture URLs by default — would ship live survey/share tokens off the box.
+> Client errors are posted to our own API and logged locally instead.
 
 ## Encryption at rest
 

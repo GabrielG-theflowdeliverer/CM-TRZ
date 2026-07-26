@@ -31,6 +31,7 @@ import { createOutcomesRouter, createProjectOutcomesRouter } from './modules/out
 import { createProjectReinforcementRouter, createReinforcementRouter } from './modules/reinforcement/reinforcement.router.js';
 import { createProjectTransferRouter, createTransferRouter } from './modules/transfer-ownership/transfer-ownership.router.js';
 import { createAuthRouter } from './modules/auth/auth.router.js';
+import { createClientErrorsRouter } from './modules/client-errors/client-errors.router.js';
 import { requireEditor, type AuthConfig } from './infra/auth.js';
 import { requestLogger } from './infra/log.js';
 import rateLimit from 'express-rate-limit';
@@ -46,6 +47,20 @@ const loginLimiter = () =>
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many login attempts — please wait and try again.' },
+  });
+
+/**
+ * Throttle the client error beacon. It is unauthenticated by design — a survey
+ * respondent's browser must be able to report too — so it needs a ceiling of
+ * its own: enough for a genuinely broken session, not enough to flood the log.
+ */
+const clientErrorLimiter = () =>
+  rateLimit({
+    windowMs: FIFTEEN_MIN,
+    limit: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many error reports — please slow down.' },
   });
 
 /** Throttle the public, internet-reachable token endpoints (survey + share). */
@@ -125,6 +140,10 @@ export function createApp(db: Db, opts: { auth?: AuthConfig } = {}): Express {
   // Auth endpoints (login must be reachable while logged out); login is throttled.
   app.use('/api/auth/login', loginLimiter());
   app.use('/api/auth', createAuthRouter(opts.auth));
+  // Client-side error reports. Mounted before the guard so a failure on the
+  // login screen or a respondent's survey page is still recorded.
+  app.use('/api/client-errors', clientErrorLimiter());
+  app.use('/api/client-errors', createClientErrorsRouter());
   // Public survey capture — the only respondent-facing surface, token-scoped,
   // exposes nothing about the project beyond the single survey behind the token.
   app.use('/api/survey', publicLimiter());
