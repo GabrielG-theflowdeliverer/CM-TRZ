@@ -24,10 +24,11 @@ export default defineConfig({
       // Bootstrap/entry, type-only, and test-support files aren't unit targets.
       exclude: ['src/**/*.test.{ts,tsx}', 'src/main.tsx', 'src/test/**', 'src/lib/types.ts'],
       reporter: ['text-summary'],
-      // Floors held just below current actuals (stmts/lines ~83, branches ~82,
-      // funcs ~68) to lock in the page-test backfill and stop silent regression.
+      // Floors held just below current actuals (stmts/lines ~87, branches ~83,
+      // funcs ~73). Functions was the weak metric at 68 until the docs feature
+      // and the untested blueprint/org-group/import flows were covered.
       // Ratchet up as coverage grows (see docs/test-coverage.md).
-      thresholds: { statements: 81, branches: 82, functions: 67, lines: 81 },
+      thresholds: { statements: 86, branches: 83, functions: 72, lines: 86 },
     },
   },
 } as never);
