@@ -113,6 +113,38 @@ describe('tracking schedules and CM performance', () => {
     expect(afterDelete.items).toHaveLength(6);
   });
 
+  it('lays rows out in the blueprints and plans modules own order', async () => {
+    // A report enumerates blueprints then plans, each in the order its own
+    // module defines. cm-perf used to re-declare those two ORDER BY clauses,
+    // so a change to either module's ordering would silently desync the report
+    // from the screen it mirrors. Nothing pinned that agreement — this does.
+    await request(ctx.app)
+      .post(`/api/projects/${projectId}/blueprints`)
+      .send({ scopeKind: 'custom', name: 'Release 2 Blueprint' })
+      .expect(201);
+    // An extend plan, which must sort after the four seeded core plans.
+    await request(ctx.app)
+      .post(`/api/projects/${projectId}/plans`)
+      .send({ kind: 'extend', name: 'Resistance Management Plan' })
+      .expect(201);
+
+    const { body: blueprints } = await request(ctx.app).get(`/api/projects/${projectId}/blueprints`).expect(200);
+    const { body: plans } = await request(ctx.app).get(`/api/projects/${projectId}/plans`).expect(200);
+    const { body: report } = await request(ctx.app)
+      .post(`/api/projects/${projectId}/cm-perf-reports`)
+      .send({ name: 'Ordering report' })
+      .expect(201);
+
+    expect(report.items.map((i: { label: string }) => i.label)).toEqual([
+      ...blueprints.map((b: { name: string }) => b.name),
+      ...plans.map((p: { name: string }) => p.name),
+    ]);
+    expect(report.items.map((i: { kind: string }) => i.kind)).toEqual([
+      ...blueprints.map(() => 'blueprint'),
+      ...plans.map(() => 'plan'),
+    ]);
+  });
+
   it('manages adapt actions blocks', async () => {
     const { body: block } = await request(ctx.app)
       .post(`/api/projects/${projectId}/adapt-actions`)

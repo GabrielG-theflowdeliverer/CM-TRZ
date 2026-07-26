@@ -25,13 +25,6 @@ export interface ItemRow {
 /** The identity of an item's subject, without the answer columns — all reconciliation needs. */
 export type ItemRefRow = Pick<ItemRow, 'id' | 'kind' | 'ref_id'>;
 
-/** A blueprint or plan that a report measures: what an item's `kind`/`ref_id` points at. */
-export interface SubjectRow {
-  kind: string;
-  id: string;
-  name: string;
-}
-
 // ---------- reports ----------
 
 export function listReportRows(db: Db, projectId: string): ReportRow[] {
@@ -136,25 +129,4 @@ export function updateItem(
   fields: { status?: string | null; description?: string | null },
 ): boolean {
   return updateById(db, 'cm_perf_items', id, { status: 'status', description: 'description' }, fields);
-}
-
-// ---------- report subjects ----------
-
-/**
- * The blueprints and plans a report enumerates, in the order rows are laid out
- * (blueprints then plans). These rows are owned by the blueprints/plans
- * modules; read here because a report is defined by what exists at the moment
- * it is viewed, and only the id/name identity is needed.
- */
-export function listSubjectRows(db: Db, projectId: string): SubjectRow[] {
-  const blueprints = db
-    .prepare('SELECT id, name FROM blueprints WHERE project_id = ? ORDER BY created_at, rowid')
-    .all(projectId) as Array<{ id: string; name: string }>;
-  const plans = db
-    .prepare('SELECT id, name FROM plans WHERE project_id = ? ORDER BY kind, position, rowid')
-    .all(projectId) as Array<{ id: string; name: string }>;
-  return [
-    ...blueprints.map((b) => ({ kind: 'blueprint', id: b.id, name: b.name })),
-    ...plans.map((p) => ({ kind: 'plan', id: p.id, name: p.name })),
-  ];
 }

@@ -31,6 +31,16 @@ export function listPlans(db: Db, projectId: string): PlanWithComputed[] {
   return repo.listPlanRows(db, projectId).map((row) => assemble(db, row));
 }
 
+/**
+ * Just the identity of each plan, in this module's canonical order (core
+ * before extend, then position), for callers that enumerate plans without
+ * needing their computed state. See listBlueprintRefs for why this isn't
+ * `listPlans`.
+ */
+export function listPlanRefs(db: Db, projectId: string): Array<{ id: string; name: string }> {
+  return repo.listPlanRows(db, projectId).map((row) => ({ id: row.id, name: row.name }));
+}
+
 export function getPlan(db: Db, id: string): PlanWithComputed {
   const row = repo.getPlanRow(db, id) ?? notFound('Plan');
   return assemble(db, row);
