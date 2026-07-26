@@ -52,6 +52,17 @@ export function listBlueprints(db: Db, projectId: string): BlueprintWithComputed
   return repo.listBlueprintRows(db, projectId).map((row) => assemble(db, row));
 }
 
+/**
+ * Just the identity of each blueprint, in this module's canonical order, for
+ * callers that enumerate blueprints without needing their computed state
+ * (cm-perf reports). Deliberately not `listBlueprints`: that assembles
+ * milestones and activities per row, and the CM-performance reconcile runs on
+ * every read.
+ */
+export function listBlueprintRefs(db: Db, projectId: string): Array<{ id: string; name: string }> {
+  return repo.listBlueprintRows(db, projectId).map((row) => ({ id: row.id, name: row.name }));
+}
+
 export function getBlueprint(db: Db, id: string): BlueprintWithComputed {
   const row = repo.getBlueprintRow(db, id) ?? notFound('Blueprint');
   return assemble(db, row);

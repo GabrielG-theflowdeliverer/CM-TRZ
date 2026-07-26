@@ -2,7 +2,29 @@ import { worstCmPerfStatus, type CmPerfItem, type CmPerfReport } from '@cmt/doma
 import { newId, nowIso, type Db } from '../../infra/db.js';
 import { notFound } from '../../infra/http.js';
 import { getProject } from '../projects/projects.service.js';
+import { listBlueprintRefs } from '../blueprints/blueprints.service.js';
+import { listPlanRefs } from '../plans/plans.service.js';
 import * as repo from './cm-perf.repo.js';
+
+/** A blueprint or plan a report measures: what an item's `kind`/`ref_id` points at. */
+interface Subject {
+  kind: string;
+  id: string;
+  name: string;
+}
+
+/**
+ * Everything a report enumerates, in row order: blueprints then plans, each in
+ * the order its own module defines. Asking those modules rather than querying
+ * their tables here is what keeps a report's rows in step with the Blueprints
+ * and Plans screens — the ordering rule has one home, not a copy per reader.
+ */
+function listSubjects(db: Db, projectId: string): Subject[] {
+  return [
+    ...listBlueprintRefs(db, projectId).map((b) => ({ kind: 'blueprint', id: b.id, name: b.name })),
+    ...listPlanRefs(db, projectId).map((p) => ({ kind: 'plan', id: p.id, name: p.name })),
+  ];
+}
 
 function toItem(r: repo.ItemRow): CmPerfItem {
   return {
@@ -30,7 +52,7 @@ function assemble(db: Db, row: repo.ReportRow): CmPerfReport {
 }
 
 /** An item row laid out for a subject at a given position. */
-function itemFor(subject: repo.SubjectRow, position: number) {
+function itemFor(subject: Subject, position: number) {
   return { position, kind: subject.kind, refId: subject.id, label: subject.name };
 }
 
@@ -42,7 +64,7 @@ function itemFor(subject: repo.SubjectRow, position: number) {
 function reconcileItems(db: Db, reportId: string, projectId: string): void {
   const items = repo.listItemRefRows(db, reportId);
   const byRef = new Map(items.filter((i) => i.ref_id).map((i) => [`${i.kind}:${i.ref_id}`, i]));
-  const subjects = repo.listSubjectRows(db, projectId);
+  const subjects = listSubjects(db, projectId);
   const subjectRefs = new Set(subjects.map((s) => `${s.kind}:${s.id}`));
 
   let position = repo.nextItemPosition(db, reportId);
@@ -95,7 +117,7 @@ export function getReport(db: Db, id: string, opts: ReadOpts = {}): CmPerfReport
 export function createReport(db: Db, projectId: string, input: { name: string; date?: string | null }): CmPerfReport {
   getProject(db, projectId);
   const id = newId();
-  const subjects = repo.listSubjectRows(db, projectId);
+  const subjects = listSubjects(db, projectId);
   db.transaction(() => {
     repo.insertReport(db, { id, projectId, name: input.name, date: input.date ?? null, createdAt: nowIso() });
     repo.insertItems(db, id, subjects.map(itemFor));
