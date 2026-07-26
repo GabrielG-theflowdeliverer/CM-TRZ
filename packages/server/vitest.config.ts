@@ -3,10 +3,11 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     setupFiles: ['./test/setup.ts'],
-    // Retry once in CI only: absorbs the occasional supertest "socket hang up"
-    // (an ephemeral-server ECONNRESET under parallel load, not a logic bug)
-    // without masking real failures (a genuine break fails both attempts).
-    retry: process.env.CI ? 1 : 0,
+    // No retry. The CI-only retry that used to sit here absorbed a supertest
+    // ECONNRESET caused by the harness starting an ephemeral server per
+    // request; the harness now holds one server per test (see test/harness.ts)
+    // and the suite ran 50/50 clean locally against a ~1-in-10 failure rate
+    // before. A retry now would only hide the next real intermittent bug.
     coverage: {
       provider: 'v8',
       all: true,

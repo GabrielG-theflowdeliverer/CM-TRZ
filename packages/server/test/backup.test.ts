@@ -6,6 +6,7 @@ import request from 'supertest';
 import { openDb, type Db } from '../src/infra/db.js';
 import { backupDb, verifyBackup } from '../src/infra/backup.js';
 import { createApp } from '../src/app.js';
+import { serve } from './harness.js';
 
 const tmpDirs: string[] = [];
 const openDbs: Db[] = [];
@@ -37,14 +38,14 @@ describe('backup and restore', () => {
   it('restore drill: the app boots off a backup with the data intact', async () => {
     const dir = tmpDir();
     const db = openTracked(path.join(dir, 'live.db'));
-    const app = createApp(db);
+    const app = serve(createApp(db));
     const { body: project } = await request(app).post('/api/projects').send({ name: 'Precious' }).expect(201);
 
     const backupFile = await backupDb(db, path.join(dir, 'backups'));
 
     // The drill itself: treat the backup as the database and run the real app on it.
     const restored = openTracked(backupFile);
-    const { body: projects } = await request(createApp(restored)).get('/api/projects').expect(200);
+    const { body: projects } = await request(serve(createApp(restored))).get('/api/projects').expect(200);
     expect(projects).toHaveLength(1);
     expect(projects[0]).toMatchObject({ id: project.id, name: 'Precious' });
   });
@@ -52,7 +53,7 @@ describe('backup and restore', () => {
   it('captures writes made after an earlier backup (snapshots are point-in-time)', async () => {
     const dir = tmpDir();
     const db = openTracked(path.join(dir, 'live.db'));
-    const app = createApp(db);
+    const app = serve(createApp(db));
 
     await request(app).post('/api/projects').send({ name: 'First' }).expect(201);
     const early = await backupDb(db, path.join(dir, 'backups'));
