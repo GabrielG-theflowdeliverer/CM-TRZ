@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 
 /**
@@ -32,24 +33,66 @@ export const logger = {
   error: (fields: Record<string, unknown>) => emit('error', fields),
 };
 
+/** Anything slower than this is logged at `warn`, so it stands out from traffic. */
+export const SLOW_REQUEST_MS = 1000;
+
 /**
- * Log one line per completed request (method, path, status, duration). Skips the
- * health probe, which Fly hits every 30s and would otherwise drown the signal.
+ * Ids are echoed back to the client and printed in logs, so a client-supplied
+ * one has to look like an id and nothing else. Anything unexpected is replaced
+ * rather than rejected — a malformed header should not fail the request.
+ */
+const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+
+export function newRequestId(): string {
+  return randomBytes(6).toString('base64url');
+}
+
+function requestIdOf(req: Request): string {
+  const supplied = req.headers['x-request-id'];
+  return typeof supplied === 'string' && ID_PATTERN.test(supplied) ? supplied : newRequestId();
+}
+
+/**
+ * One line per request, carrying the id the client can quote back.
+ *
+ * Three cases, because only the first used to be recorded:
+ * - completed          -> info, or warn past SLOW_REQUEST_MS
+ * - completed slowly   -> warn, so `fly logs` filtering finds it
+ * - client gave up     -> warn with `aborted: true`
+ *
+ * That last case is the one that mattered: `finish` only fires when a response
+ * completes, so a request the browser abandoned (api.ts aborts at 15s) left no
+ * trace at all — the user saw "the request timed out" and the server had
+ * nothing to show for it.
+ *
+ * Skips the health probe, which Fly hits every 30s and would drown the signal.
  */
 export function requestLogger() {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (req.path === '/api/health') return next();
+    const id = requestIdOf(req);
+    res.locals.requestId = id;
+    // Echoed so a successful-but-slow request can also be traced from the client.
+    res.setHeader('X-Request-Id', id);
+
     const start = process.hrtime.bigint();
+    const elapsed = () => Math.round(Number(process.hrtime.bigint() - start) / 1e6);
+    let finished = false;
+
     res.on('finish', () => {
-      const ms = Number(process.hrtime.bigint() - start) / 1e6;
-      logger.info({
-        msg: 'req',
-        method: req.method,
-        path: req.path,
-        status: res.statusCode,
-        ms: Math.round(ms),
-      });
+      finished = true;
+      const ms = elapsed();
+      const fields = { msg: 'req', id, method: req.method, path: req.path, status: res.statusCode, ms };
+      if (ms >= SLOW_REQUEST_MS) logger.warn({ ...fields, slow: true });
+      else logger.info(fields);
     });
+
+    // `close` fires for every request; only interesting when nothing was sent.
+    res.on('close', () => {
+      if (finished) return;
+      logger.warn({ msg: 'req', id, method: req.method, path: req.path, ms: elapsed(), aborted: true });
+    });
+
     next();
   };
 }

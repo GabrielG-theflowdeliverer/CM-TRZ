@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react';
+import { reportClientError } from '../lib/report';
 
 interface Props {
   children: ReactNode;
@@ -20,6 +21,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error) {
     console.error('Render error:', error);
+    // A render crash left no trace beyond this console line and the panel
+    // below — both gone the moment the user navigates away.
+    reportClientError({ kind: 'render', message: error.message, stack: error.stack });
   }
 
   componentDidUpdate(prev: Props) {
