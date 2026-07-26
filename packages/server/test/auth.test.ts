@@ -3,6 +3,7 @@ import request from 'supertest';
 import { openDb } from '../src/infra/db.js';
 import { createApp } from '../src/app.js';
 import { hashPassword, type AuthConfig } from '../src/infra/auth.js';
+import { serve } from './harness.js';
 
 const PASSWORD = 'correct-horse-battery-staple';
 
@@ -14,7 +15,7 @@ function authedApp() {
     secure: false,
     ttlSeconds: 3600,
   };
-  return createApp(db, { auth });
+  return serve(createApp(db, { auth }));
 }
 
 describe('editor authentication', () => {
@@ -64,7 +65,7 @@ describe('editor authentication', () => {
   });
 
   it('runs the API open when no auth is configured', async () => {
-    const app = createApp(openDb(':memory:')); // no auth
+    const app = serve(createApp(openDb(':memory:'))); // no auth
     await request(app).get('/api/projects').expect(200);
     const me = await request(app).get('/api/auth/me').expect(200);
     expect(me.body).toEqual({ authenticated: true, authRequired: false });
