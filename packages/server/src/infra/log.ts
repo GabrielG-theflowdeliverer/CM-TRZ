@@ -37,6 +37,26 @@ export const logger = {
 export const SLOW_REQUEST_MS = 1000;
 
 /**
+ * The path to record, taken from `req.originalUrl`.
+ *
+ * Not `req.path`: Express rewrites `req.url` when it enters a mounted router
+ * and only restores it if the handler calls `next()` — which a handler that
+ * sends a response does not. Read on `finish`, `req.path` is therefore whatever
+ * remained after routing, so `GET /api/projects/:id/dashboard` logged as `/`
+ * and `GET /api/auth/me` as `/me`. `originalUrl` is documented as never
+ * rewritten.
+ *
+ * Survey and share tokens ride in the path and are live access credentials, so
+ * the segment after them is replaced — the same reason `Referrer-Policy` is
+ * `no-referrer` and the client strips them before reporting. The query string
+ * is dropped entirely rather than audited.
+ */
+export function loggablePath(originalUrl: string): string {
+  const path = originalUrl.split('?')[0] ?? '';
+  return path.replace(/\/api\/(survey|share)\/[^/]+/g, '/api/$1/[token]');
+}
+
+/**
  * Ids are echoed back to the client and printed in logs, so a client-supplied
  * one has to look like an id and nothing else. Anything unexpected is replaced
  * rather than rejected — a malformed header should not fail the request.
@@ -69,7 +89,10 @@ function requestIdOf(req: Request): string {
  */
 export function requestLogger() {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (req.path === '/api/health') return next();
+    // One source of truth for the path, used for the skip and the log line
+    // alike — req.path is unreliable by the time the response finishes.
+    const path = loggablePath(req.originalUrl);
+    if (path === '/api/health') return next();
     const id = requestIdOf(req);
     res.locals.requestId = id;
     // Echoed so a successful-but-slow request can also be traced from the client.
@@ -82,7 +105,7 @@ export function requestLogger() {
     res.on('finish', () => {
       finished = true;
       const ms = elapsed();
-      const fields = { msg: 'req', id, method: req.method, path: req.path, status: res.statusCode, ms };
+      const fields = { msg: 'req', id, method: req.method, path, status: res.statusCode, ms };
       if (ms >= SLOW_REQUEST_MS) logger.warn({ ...fields, slow: true });
       else logger.info(fields);
     });
@@ -90,7 +113,7 @@ export function requestLogger() {
     // `close` fires for every request; only interesting when nothing was sent.
     res.on('close', () => {
       if (finished) return;
-      logger.warn({ msg: 'req', id, method: req.method, path: req.path, ms: elapsed(), aborted: true });
+      logger.warn({ msg: 'req', id, method: req.method, path, ms: elapsed(), aborted: true });
     });
 
     next();

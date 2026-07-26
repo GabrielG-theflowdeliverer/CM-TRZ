@@ -49,6 +49,41 @@ describe('a request the browser abandons', () => {
   });
 });
 
+describe('what a real request records', () => {
+  it('logs the full API path, not the post-routing remainder', async () => {
+    // Caught in production: unit tests on a hand-built req cannot see this,
+    // because the truncation only happens once Express has routed for real.
+    process.env.CMT_LOG_LEVEL = 'info';
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const { body: p } = await request(ctx.app).post('/api/projects').send({ name: 'X' }).expect(201);
+    await request(ctx.app).get(`/api/projects/${p.id}/dashboard`).expect(200);
+    await request(ctx.app).get('/api/auth/me').expect(200);
+
+    const paths = logSpy.mock.calls
+      .map((c) => JSON.parse(c[0] as string))
+      .filter((l) => l.msg === 'req')
+      .map((l) => l.path);
+    expect(paths).toContain('/api/projects');
+    expect(paths).toContain(`/api/projects/${p.id}/dashboard`);
+    expect(paths).toContain('/api/auth/me');
+  });
+
+  it('never writes a survey or share token into the log', async () => {
+    process.env.CMT_LOG_LEVEL = 'info';
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await request(ctx.app).get('/api/survey/SECRETTOKENVALUE123');
+    await request(ctx.app).get('/api/share/ANOTHERSECRET456');
+
+    const all = logSpy.mock.calls.map((c) => c[0] as string).join('\n');
+    expect(all).not.toContain('SECRETTOKENVALUE123');
+    expect(all).not.toContain('ANOTHERSECRET456');
+    expect(all).toContain('/api/survey/[token]');
+    expect(all).toContain('/api/share/[token]');
+  });
+});
+
 describe('client error beacon', () => {
   it('writes a browser failure into the same log stream as server errors', async () => {
     await request(ctx.app)

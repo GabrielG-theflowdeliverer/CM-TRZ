@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import type { Request, Response } from 'express';
-import { logger, requestLogger, SLOW_REQUEST_MS } from '../src/infra/log.js';
+import { loggablePath, logger, requestLogger, SLOW_REQUEST_MS } from '../src/infra/log.js';
 
 const savedLevel = process.env.CMT_LOG_LEVEL;
 
@@ -58,7 +58,9 @@ describe('requestLogger', () => {
   function fakeReqRes(path: string, method = 'GET', status = 200, headers: Record<string, string> = {}) {
     const res = new EventEmitter() as unknown as Response;
     Object.assign(res, { statusCode: status, locals: {}, setHeader: vi.fn() });
-    return { req: { path, method, headers } as unknown as Request, res };
+    // `originalUrl` is what the logger reads; `path` is deliberately set to the
+    // post-routing remainder a real Express request would show on `finish`.
+    return { req: { path: '/', originalUrl: path, method, headers } as unknown as Request, res };
   }
 
   it('logs one line per finished request with method/path/status/ms', () => {
@@ -161,5 +163,28 @@ describe('requestLogger', () => {
     expect(next).toHaveBeenCalledOnce();
     res.emit('finish');
     expect(console.log).not.toHaveBeenCalled();
+  });
+});
+
+describe('loggablePath', () => {
+  it('keeps the full path, which req.path does not', () => {
+    // Express rewrites req.url inside a mounted router and only restores it if
+    // the handler calls next(), so a responding handler leaves it truncated:
+    // /api/projects/:id/dashboard was being logged as "/".
+    expect(loggablePath('/api/projects/p1/dashboard')).toBe('/api/projects/p1/dashboard');
+    expect(loggablePath('/api/auth/me')).toBe('/api/auth/me');
+  });
+
+  it('redacts survey and share tokens, which are live credentials', () => {
+    expect(loggablePath('/api/survey/SECRETTOKEN123')).toBe('/api/survey/[token]');
+    expect(loggablePath('/api/share/SECRETTOKEN123')).toBe('/api/share/[token]');
+    // The share browse mirror nests the whole project API under the token.
+    expect(loggablePath('/api/share/SECRETTOKEN123/projects/p1/groups')).toBe(
+      '/api/share/[token]/projects/p1/groups',
+    );
+  });
+
+  it('drops the query string rather than auditing what might be in it', () => {
+    expect(loggablePath('/api/projects?status=Active')).toBe('/api/projects');
   });
 });
