@@ -32,9 +32,12 @@ export default tseslint.config(
   // CLAUDE.md: "Routers handle HTTP only ... Services own invariants ... Repos
   // are SQL-only". That held by convention until it didn't: services had
   // accumulated ~46 statements of their own, and five modules had no repo at
-  // all. These two rules make the boundary a build failure instead of a code
+  // all. These rules make the boundary a build failure instead of a code
   // review someone has to remember to do.
+  //
+  // Note the two blocks have different scopes on purpose — see below.
   {
+    // SQL is repo-only, so this one exempts repos.
     files: ['packages/server/src/modules/**/*.ts'],
     ignores: ['packages/server/src/modules/**/*.repo.ts'],
     rules: {
@@ -48,6 +51,15 @@ export default tseslint.config(
             'SQL belongs in a *.repo.ts. Add a repo function and call it from here (services own invariants and transactions, repos own statements).',
         },
       ],
+    },
+  },
+  {
+    // Cross-module reach, on the other hand, is wrong from *every* file in a
+    // module — a repo importing a sibling's repo couples two data layers just
+    // as badly as a service doing it, and is how the coupling would creep back
+    // after being cleaned out. So this block deliberately has no `ignores`.
+    files: ['packages/server/src/modules/**/*.ts'],
+    rules: {
       // Reaching past a sibling's service into its repo skips the invariants
       // that service enforces. Depend on the owning module's published surface
       // (*.service.ts, or its *.guards.ts for a rule you need without the
